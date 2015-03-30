@@ -1,7 +1,7 @@
 # Circadian Daylight
 Use your SmartThings Hub to sync your color changing lights with natural daylight hues
 
-This SmartApp synchronizes your color changing lights with local perceived color temperature of the sky throughout the day.  This gives your environment a morenatural feel, with cooler whites during the midday and warmer tints near twilight and dawn.  
+This SmartApp synchronizes your color changing lights with local perceived color temperature of the sky throughout the day.  This gives your environment a more natural feel, with cooler whites during the midday and warmer tints near twilight and dawn.
  
 In addition, the SmartApp sets your lights to a nice cool white at 1% in "Sleep" mode, which is far brighter than starlight but won't reset your circadian rhythm or break down too much rhodopsin in your eyes.
 
