@@ -5,7 +5,7 @@ This SmartApp synchronizes your color changing lights with local perceived color
  
 In addition, the SmartApp sets your lights to a nice cool white at 1% in "Sleep" mode, which is far brighter than starlight but won't reset your circadian rhythm or break down too much rhodopsin in your eyes.
 
-![circadian_daylight](https://cloud.githubusercontent.com/assets/478212/6904249/1c64ecea-d6e5-11e4-996f-a007c3bcdf09.png)
+![circadian_daylight](https://cloud.githubusercontent.com/assets/478212/6904334/b8decdac-d6e5-11e4-97ec-e48c53a8b96e.png)
 
 Human circadian rhythms are heavily influenced by ambient light levels and hues.  Hormone production, brainwave activity, mood and wakefulness are just some of the cognitive functions tied to cyclical natural light.
  *	http://en.wikipedia.org/wiki/Zeitgeber
