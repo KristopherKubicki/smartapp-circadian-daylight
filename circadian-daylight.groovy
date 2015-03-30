@@ -37,7 +37,7 @@
  *     *  There are no considerations for weather or altitude, but does use your 
  *		hub's zip code to calculate the sun position.    
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
- *		2700K (warm white) until your hub goes into Night mode
+ *		2700K (warm white) until your hub goes into Sleep mode
  *
  *  Version 1.0: March 30, 2015 - Initial release
  *  
