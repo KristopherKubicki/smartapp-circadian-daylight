@@ -42,7 +42,7 @@
  *  Version 1.0: March 30, 2015 - Initial release
  *  
  *  The latest version of this file can be found at
- *     https://github.com/KristopherKubicki/smartapp-circadian-daylight/
+ *     https://github.com/KristopherKubicki/smartapp-circadian-daylight/blob/master/circadian-daylight.groovy
  *   
  */
 
