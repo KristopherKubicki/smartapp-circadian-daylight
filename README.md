@@ -19,3 +19,8 @@ Technical notes:  I had to make a lot of assumptions when writing this App:
 *  I aligned the color space to CIE with white at D50.  I suspect "true" white for this application might actually be D65, but I will have to recalculate the color temperature if I move it.  
 *  There are no considerations for weather or altitude, but does use your Hub's zip code to calculate the sun position.    
 *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to 2700K (warm white) until your hub goes into Night mode
+
+License
+-------
+Copyright (c) 2015, Kristopher Kubicki
+All rights reserved.
