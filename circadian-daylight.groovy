@@ -75,6 +75,7 @@ def installed() {
 
 def updated() {
 	unsubscribe()
+    unschedule()
 	initialize()
 }
 
@@ -83,6 +84,8 @@ private def initialize() {
 	log.debug("initialize() with settings: ${settings}")
 	subscribe(switches, "switch", sunHandler)
 	subscribe(motions, "motion", sunHandler)
+//    schedule(0 0/5 * * * ?, sunHandler)
+	state.oldValue = 0
 }
 
 def sunHandler(evt) {
@@ -92,10 +95,10 @@ def sunHandler(evt) {
 	def midDay = after.sunrise.time + ((after.sunset.time - after.sunrise.time) / 2)
 
 	def currentTime = now()
-	log.debug "difference is $midDay : mode ${location.mode} :: $currentTime : ${location.mode}"
+//	log.debug "difference is $midDay : mode ${location.mode} :: $currentTime : ${location.mode}"
 
     
-//	def hsl = rgbToHSL(ctToRGB(6000))
+//	def hsb = rgbToHSB(ctToRGB(6000))
 	def hsb
     
 	if(location.mode == "Sleep") { 
@@ -124,19 +127,21 @@ def sunHandler(evt) {
 			hsb = rgbToHSB(ctToRGB(temp))
 		}
 	}
-    
-    
-	for ( bulb in bulbs) { 
-//		log.debug "Updated with daylight hueColor: ${hsb.h} ${hsb.s} ${hsb.b}"
- 	 	def newValue = [hue: hsb.h as Integer, saturation: hsb.s as Integer, level: hsb.b as Integer ?: 1]
-//		log.debug "new value = $newValue :: $midDay"
-		bulb.setColor(newValue)
+
+ 	def newValue = [hue: hsb.h as Integer, saturation: hsb.s as Integer, level: hsb.b as Integer ?: 1]
+	if (newValue != state.oldValue) {
+        state.oldValue = newValue
+    	log.trace "Updated with daylight hueColor: $newValue"
+		for ( bulb in bulbs) { 
+//			log.debug "new value = $newValue :: $midDay"
+        	bulb.setColor(newValue)
+		}
 	}   
 }
 
 // Based on color temperature converter from 
 //  http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/
-// Will not work for color temperatures from 2700 to 6000 
+// Will not work for color temperatures below 2700 or above 6000 
 def ctToRGB(ct) { 
 
 	ct = ct / 100
@@ -147,13 +152,14 @@ def ctToRGB(ct) {
 //	log.debug("r: $r g: $g b: $b")
 
 	def rgb = [:]
-	rgb = [r: r, g: g, b: b] 
+	rgb = [r: Math.round(r) as Integer, g: Math.round(g) as Integer, b: Math.round(b) as Integer] 
 	rgb
 }
 
-
 // Based on color calculator from
 //  http://codeitdown.com/hsl-hsb-hsv-color/
+// Corrected brightness and saturation using calculator from
+//  http://www.rapidtables.com/convert/color/rgb-to-hsl.htm
 // 
 def rgbToHSB(rgb) {
 	def r = rgb.r
@@ -165,17 +171,22 @@ def rgbToHSB(rgb) {
 	if (b > cmax) cmax = b;
 	float cmin = (r < g) ? r : g;
 	if (b < cmin) cmin = b;
+    float delta = (cmax - cmin)
 
-	brightness = cmax / 255;
-	if (cmax != 0) saturation = (cmax - cmin) / cmax;
-	else saturation = 0;
-		
+//	brightness = cmax / 255;
+	brightness = ((cmax + cmin) / 2) / 255
+    
+//	if (cmax != 0) saturation = (cmax - cmin) / cmax;
+//	else saturation = 0;
+	saturation = 0
+	if (delta != 0)	saturation = (delta/255) / (1 - ((2*brightness)-1))    	
+
 	if (saturation == 0) hue = 0;
 	else hue = 0.60 * ((g - b) / (255 -  cmin)) % 360
 
 //	log.debug("h: $hue s: $saturation b: $brightness")
  
 	def hsb = [:]    
-	hsb = [h: hue * 100, s: saturation * 100, b: brightness * 100]
+	hsb = [h: Math.round(hue * 100) as Integer, s: Math.round(saturation * 100) as Integer, b: Math.round(brightness * 100) as Integer]
 	hsb
 }
