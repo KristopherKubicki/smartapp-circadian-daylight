@@ -64,7 +64,7 @@ preferences {
 		input "motions", "capability.motionSensor", title: "Which motions?", multiple:true
 	}
 	section("Control these bulbs...") {
-//		input "bulbs", "capability.colorControl", title: "Which Hue Bulbs?", multiple:true
+		input "bulbs", "capability.colorControl", title: "Which Hue Bulbs?", multiple:true
 	}
 }
 
