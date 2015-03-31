@@ -128,12 +128,12 @@ def sunHandler(evt) {
 		}
 	}
 
-/ 	def newValue = [hue: hsb.h as Integer, saturation: hsb.s as Integer, level: hsb.b as Integer ?: 1]
+ 	def newValue = [hue: hsb.h as Integer, saturation: hsb.s as Integer, level: hsb.b as Integer ?: 1]
 	if (newValue != state.oldValue) {
         state.oldValue = newValue
     	log.trace "Updated with daylight hueColor: $newValue"
 		for ( bulb in bulbs) { 
-//			log.debug "new value = $hsb :: $midDay"
+//			log.debug "new value = $newValue :: $midDay"
         	bulb.setColor(newValue)
 		}
 	}   
