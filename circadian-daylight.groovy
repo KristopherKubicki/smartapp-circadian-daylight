@@ -37,12 +37,13 @@
  *     *  There are no considerations for weather or altitude, but does use your 
  *		hub's zip code to calculate the sun position.    
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
- *		2700K (warm white) until your hub goes into Sleep mode
+ *		2700K (warm white) until your hub goes into Night mode
  *
+ *  Version 1.1: April 1, 2015 - Add support for contact sensors 
  *  Version 1.0: March 30, 2015 - Initial release
  *  
  *  The latest version of this file can be found at
- *     https://github.com/KristopherKubicki/smartapp-circadian-daylight/blob/master/circadian-daylight.groovy
+ *     https://github.com/KristopherKubicki/smartapp-circadian-daylight/
  *   
  */
 
@@ -60,8 +61,11 @@ preferences {
 	section("When these switches turn on...") {
 		input "switches", "capability.switch", title: "Which switches?", multiple:true
 	}
-	section("When these motions...") {
+	section("Or these motion sensors are activated...") {
 		input "motions", "capability.motionSensor", title: "Which motions?", multiple:true
+	}
+    section("Or these contact sensors are opened...") {
+		input "contacts", "capability.contactSensor", title: "Which contacts?", multiple:true
 	}
 	section("Control these bulbs...") {
 		input "bulbs", "capability.colorControl", title: "Which Hue Bulbs?", multiple:true
@@ -83,6 +87,7 @@ private def initialize() {
 	log.debug("initialize() with settings: ${settings}")
 	subscribe(switches, "switch", sunHandler)
 	subscribe(motions, "motion", sunHandler)
+    subscribe(contacts, "contact", sunHandler)
 }
 
 def sunHandler(evt) {
