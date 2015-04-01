@@ -75,7 +75,7 @@ def installed() {
 
 def updated() {
 	unsubscribe()
-    unschedule()
+	unschedule()
 	initialize()
 }
 
@@ -84,15 +84,15 @@ private def initialize() {
 	log.debug("initialize() with settings: ${settings}")
 	subscribe(switches, "switch", sunHandler)
 	subscribe(motions, "motion", sunHandler)
-    schedule("0 */6 * * * ?", sunHandler)			// "gentle" polling every 6 minutes
+	schedule("0 */6 * * * ?", sunHandler)			// "gentle" polling every 6 minutes
 	state.oldValue = 0
 }
 
 def sunHandler(evt) {
 //	log.debug "$evt.name: $evt.value"
 	def maxK = 6500
-    def minK = 2500
-    def deltaK = maxK-minK
+	def minK = 2500
+	def deltaK = maxK-minK
 
 	def after = getSunriseAndSunset()
 	def midDay = after.sunrise.time + ((after.sunset.time - after.sunrise.time) / 2)
@@ -112,12 +112,12 @@ def sunHandler(evt) {
 	else if(currentTime < after.sunrise.time) {
 //		log.info("this is early twilight")
 		hsb = rgbToHSB(ctToRGB(minK))
-       	hsb.b = (minK / maxK) * 100			// convert to relative percentage of lightness
+		hsb.b = (minK / maxK) * 100			// convert to relative percentage of lightness
 	}
 	else if(currentTime > after.sunset.time) { 
 //		log.info("this is late twilight")
 		hsb = rgbToHSB(ctToRGB(minK))
-        hsb.b = (minK / maxK) * 100			// convert to relative percentage of lightness
+		hsb.b = (minK / maxK) * 100			// convert to relative percentage of lightness
 	}
 	else {
 //    	log.debug("this is daylight")
@@ -125,24 +125,24 @@ def sunHandler(evt) {
 			def temp = minK + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * deltaK)
 //			log.info("this is morning: $temp")
 			hsb = rgbToHSB(ctToRGB(temp))
-            hsb.b = (temp / maxK) * 100		// convert to relative percentage of lightness
+			hsb.b = (temp / maxK) * 100		// convert to relative percentage of lightness
 		}
 		else { 
 			def temp = maxK - ((currentTime - midDay) / (after.sunset.time - midDay) * deltaK)
-//            log.info("this is afternoon: $temp")
+//			log.info("this is afternoon: $temp")
 			hsb = rgbToHSB(ctToRGB(temp))
-            hsb.b = (temp / maxK) * 100		// convert to relative percentage of lightness
-}
+			hsb.b = (temp / maxK) * 100		// convert to relative percentage of lightness
+		}
 	}
     
-//    def tTemp = minK						// for testing only
-//    hsb = rgbToHSB(ctToRGB(tTemp))			// for testing only
-//    hsb.b = (tTemp / maxK) * 100			// for testing only
+//	def tTemp = minK						// for testing only
+//	hsb = rgbToHSB(ctToRGB(tTemp))			// for testing only
+//	hsb.b = (tTemp / maxK) * 100			// for testing only
 
  	def newValue = [hue: Math.round(hsb.h) as Integer, saturation: Math.round(hsb.s) as Integer, level: Math.round(hsb.b) as Integer ?: 1]
 	if (newValue != state.oldValue) {
-        state.oldValue = newValue
-    	log.info "Updated with daylight hueColor: $newValue"
+		state.oldValue = newValue
+		log.info "Updated with daylight hueColor: $newValue"
 		bulbs?.setColor(newValue)
 	}   
 }
@@ -153,47 +153,45 @@ def sunHandler(evt) {
 // Remove comments between *uncomment* lines
 def ctToRGB(ct) { 
 	float r
-    float g
-    float b
+	float g
+	float b
     
 //	if (ct < 2500) ct = 2500				// Philips Hue effective minimum (stretched)
 //	if (ct > 6500) ct = 6500				// Philips Hue effective maximum (stretched)
 
-
 // *uncomment below for full algorithm*
-// if (ct < 1000) ct = 1000
-// if (ct > 40000) ct = 40000
+//	if (ct < 1000) ct = 1000
+//	if (ct > 40000) ct = 40000
+	
 	ct = ct / 100
 //	if (ct <= 66 ) {
-    	r = 255
+		r = 255
 		g = 99.4708025861 * Math.log(ct) - 161.1195681661
-//    }
-//    else {
-//    	r = 329.698727446 * Math.pow((ct-60), -0.1332047592)
-//        g = 288.1221695283 * Math.pow((ct-60), -0.0755148492)
-//    }
-//    if (r > 255) r = 255
-    if (g > 255) g = 255
+//	}
+//	else {
+//		r = 329.698727446 * Math.pow((ct-60), -0.1332047592)
+//		g = 288.1221695283 * Math.pow((ct-60), -0.0755148492)
+//	}
+//	if (r > 255) r = 255
+	if (g > 255) g = 255
 //	if (ct >= 66) {
-//    	b = 255
-//    }
-//    else {
-//    	if (ct <= 19) {
-//        	b = 0
-//        }
-//        else {
-        	b = 138.5177312231 * Math.log(ct - 10) - 305.0447927307
-//        }
-//    }
-    if (b > 255) b = 255
+//		b = 255
+//	}
+//	else if (ct <= 19) {
+//		b = 0
+//	}
+//	else {
+		b = 138.5177312231 * Math.log(ct - 10) - 305.0447927307
+//	}
+	if (b > 255) b = 255
 // *uncomment above for full algorithm*
 
 //	log.debug("raw-> r: $r g: $g b: $b")
 
-// Apply Hue gamma adjustment
+// Apply Hue gamma adjustment for more vibrant & accurate colors
 	float red = r/255
-   	float green = g/255
-    float blue = b/255    
+	float green = g/255
+   	float blue = b/255    
 	red = ((red > 0.04045f) ? Math.pow((red + 0.055f) / (1.0f + 0.055f), 2.4f) : (red / 12.92f)) * 255
 	green = ((green > 0.04045f) ? Math.pow((green + 0.055f) / (1.0f + 0.055f), 2.4f) : (green / 12.92f)) * 255
 	blue = ((blue > 0.04045f) ? Math.pow((blue + 0.055f) / (1.0f + 0.055f), 2.4f) : (blue / 12.92f)) * 255
@@ -218,7 +216,7 @@ def rgbToHSB(rgb) {
 	if (b > cmax) cmax = b;
 	float cmin = (r < g) ? r : g;
 	if (b < cmin) cmin = b;
-    float delta = (cmax - cmin)
+	float delta = (cmax - cmin)
 
 	brightness = cmax / 255;
     
