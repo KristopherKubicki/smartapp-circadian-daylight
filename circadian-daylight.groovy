@@ -39,6 +39,7 @@
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
  *		2700K (warm white) until your hub goes into Sleep mode
  *
+ *  Version 1.1: April 1, 2015 - Add support for contact sensors
  *  Version 1.0: March 30, 2015 - Initial release
  *  
  *  The latest version of this file can be found at
@@ -57,17 +58,19 @@ definition(
 )
 
 preferences {
-	section("When these switches turn on...") {
+	section("When these switches turn on/off...") {
 		input "switches", "capability.switch", title: "Which switches?", multiple:true
 	}
-	section("When these motions...") {
+	section("Or these motion sensors are activated...") {
 		input "motions", "capability.motionSensor", title: "Which motions?", multiple:true
+	}
+	section("Or these contact sensors open/close...") {
+	 	input "contacts", "capability.contactSensor", title: "Which contacts?", multiple:true
 	}
 	section("Control these bulbs...") {
 		input "bulbs", "capability.colorControl", title: "Which Hue Bulbs?", multiple:true
 	}
 }
-
 
 def installed() {
 	initialize()
@@ -84,6 +87,7 @@ private def initialize() {
 	log.debug("initialize() with settings: ${settings}")
 	subscribe(switches, "switch", sunHandler)
 	subscribe(motions, "motion", sunHandler)
+	subscribe(contacts, "contact", sunHandler)
 	schedule("0 */6 * * * ?", sunHandler)			// "gentle" polling every 6 minutes
 	state.oldValue = 0
 }
