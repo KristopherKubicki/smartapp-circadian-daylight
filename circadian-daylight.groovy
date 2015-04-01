@@ -104,8 +104,6 @@ def sunHandler(evt) {
 	def currentTime = now()
 //	log.debug "difference is $midDay : mode ${location.mode} :: $currentTime : ${location.mode}"
 
-    
-//	def hsb = rgbToHSB(ctToRGB(6000))
 	def hsb
     
 	if(location.mode == "Night") { 
