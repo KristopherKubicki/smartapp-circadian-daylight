@@ -75,7 +75,7 @@ def installed() {
 
 def updated() {
 	unsubscribe()
-//    unschedule()
+    unschedule()
 	initialize()
 }
 
@@ -84,7 +84,7 @@ private def initialize() {
 	log.debug("initialize() with settings: ${settings}")
 	subscribe(switches, "switch", sunHandler)
 	subscribe(motions, "motion", sunHandler)
-//    schedule(0 0/5 * * * ?, sunHandler)
+    schedule("0 */6 * * * ?", sunHandler)			// "gentle" polling every 6 minutes
 	state.oldValue = 0
 }
 
@@ -143,10 +143,6 @@ def sunHandler(evt) {
 	if (newValue != state.oldValue) {
         state.oldValue = newValue
     	log.info "Updated with daylight hueColor: $newValue"
-//		for ( bulb in bulbs) { 
-//			log.debug "new value = $newValue :: $midDay"
-//        	bulb.setColor(newValue)
-//		}
 		bulbs?.setColor(newValue)
 	}   
 }
@@ -194,15 +190,14 @@ def ctToRGB(ct) {
 
 //	log.debug("raw-> r: $r g: $g b: $b")
 
-// Apply Hue gamma adjustments
+// Apply Hue gamma adjustment
 	float red = r/255
    	float green = g/255
-    float blue = b/255
-//    log.debug ("decrgb-> r: $red g: $green b: $blue")
-    
+    float blue = b/255    
 	red = ((red > 0.04045f) ? Math.pow((red + 0.055f) / (1.0f + 0.055f), 2.4f) : (red / 12.92f)) * 255
 	green = ((green > 0.04045f) ? Math.pow((green + 0.055f) / (1.0f + 0.055f), 2.4f) : (green / 12.92f)) * 255
 	blue = ((blue > 0.04045f) ? Math.pow((blue + 0.055f) / (1.0f + 0.055f), 2.4f) : (blue / 12.92f)) * 255
+
 //	log.debug("gamma-> r: $red g: $green b: $blue")
 
 	def rgb = [:]
@@ -212,8 +207,6 @@ def ctToRGB(ct) {
 
 // Based on color calculator from
 //  http://codeitdown.com/hsl-hsb-hsv-color/
-// Corrected brightness (level) and saturation using calculator from
-//  http://www.rapidtables.com/convert/color/rgb-to-hsl.htm
 // 
 def rgbToHSB(rgb) {
 	def r = rgb.r
@@ -228,16 +221,12 @@ def rgbToHSB(rgb) {
     float delta = (cmax - cmin)
 
 	brightness = cmax / 255;
-//	brightness = ((cmax + cmin) / 2) / 255
     
 	if (cmax != 0) saturation = (cmax - cmin) / cmax;
 	else saturation = 0;
-//	saturation = 0
-//	if (delta != 0)	saturation = (delta/255) / (1 - Math.abs((2*brightness)-1) )    	
 
 	if (saturation == 0) hue = 0;
 	else hue = 0.60 * ((g - b) / (255 -  cmin)) % 360
-//	else hue = (60 * ((g-b) / (cmax-cmin))) % 360
 
 //	log.debug("h: $hue s: $saturation b: $brightness")
  
@@ -245,3 +234,32 @@ def rgbToHSB(rgb) {
 	hsb = [h: hue *100, s: saturation *100, b: brightness * 100]
 	hsb
 }
+
+// Adapted above to return HSL level and saturation using calculator from
+//  http://www.rapidtables.com/convert/color/rgb-to-hsl.htm
+//
+//def rgbToHSL(rgb) {
+//	def r = rgb.r
+//	def g = rgb.g
+//	def b = rgb.b
+//	float hue, saturation, brightness;
+//
+//	float cmax = (r > g) ? r : g;
+//	if (b > cmax) cmax = b;
+//	float cmin = (r < g) ? r : g;
+//	if (b < cmin) cmin = b;
+//	float delta = (cmax - cmin)
+//
+//	brightness = ((cmax + cmin) / 2) / 255
+//	saturation = 0
+//	if (delta != 0)	saturation = (delta/255) / (1 - Math.abs((2*brightness)-1) )    	
+//
+//	if (saturation == 0) hue = 0;
+//	else hue = 0.60 * ((g - b) / (255 -  cmin)) % 360
+//
+//	log.debug("h: $hue s: $saturation b: $brightness")
+// 
+//	def hsb = [:]    
+//	hsb = [h: hue *100, s: saturation *100, b: brightness * 100]
+//	hsb
+//}
