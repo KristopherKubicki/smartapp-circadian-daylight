@@ -90,8 +90,8 @@ private def initialize() {
 
 def sunHandler(evt) {
 //	log.debug "$evt.name: $evt.value"
-	def maxK = 6000
-    def minK = 2700
+	def maxK = 6500
+    def minK = 2500
     def deltaK = maxK-minK
 
 	def after = getSunriseAndSunset()
@@ -104,70 +104,108 @@ def sunHandler(evt) {
 //	def hsb = rgbToHSB(ctToRGB(6000))
 	def hsb
     
-	if(location.mode == "Sleep") { 
-		log.info("this is starlight")
+	if(location.mode == "Night") { 
+//		log.info("this is starlight")
 		hsb = rgbToHSB(ctToRGB(maxK))
 		hsb.b = 2
 	}
 	else if(currentTime < after.sunrise.time) {
-		log.info("this is early twilight")
+//		log.info("this is early twilight")
 		hsb = rgbToHSB(ctToRGB(minK))
+       	hsb.b = (minK / maxK) * 100			// convert to relative percentage of lightness
 	}
 	else if(currentTime > after.sunset.time) { 
-		log.info("this is late twilight")
+//		log.info("this is late twilight")
 		hsb = rgbToHSB(ctToRGB(minK))
+        hsb.b = (minK / maxK) * 100			// convert to relative percentage of lightness
 	}
 	else {
 //    	log.debug("this is daylight")
 		if(currentTime < midDay) { 
 			def temp = minK + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * deltaK)
-			log.info("this is morning: $temp")
+//			log.info("this is morning: $temp")
 			hsb = rgbToHSB(ctToRGB(temp))
+            hsb.b = (temp / maxK) * 100		// convert to relative percentage of lightness
 		}
 		else { 
 			def temp = maxK - ((currentTime - midDay) / (after.sunset.time - midDay) * deltaK)
-            log.info("this is afternoon: $temp")
+//            log.info("this is afternoon: $temp")
 			hsb = rgbToHSB(ctToRGB(temp))
-		}
+            hsb.b = (temp / maxK) * 100		// convert to relative percentage of lightness
+}
 	}
     
-//    hsb = rgbToHSB(ctToRGB(maxK))
+//    def tTemp = minK						// for testing only
+//    hsb = rgbToHSB(ctToRGB(tTemp))			// for testing only
+//    hsb.b = (tTemp / maxK) * 100			// for testing only
 
  	def newValue = [hue: Math.round(hsb.h) as Integer, saturation: Math.round(hsb.s) as Integer, level: Math.round(hsb.b) as Integer ?: 1]
 	if (newValue != state.oldValue) {
         state.oldValue = newValue
     	log.info "Updated with daylight hueColor: $newValue"
-		for ( bulb in bulbs) { 
+//		for ( bulb in bulbs) { 
 //			log.debug "new value = $newValue :: $midDay"
-        	bulb.setColor(newValue)
-		}
+//        	bulb.setColor(newValue)
+//		}
+		bulbs?.setColor(newValue)
 	}   
 }
 
 // Based on color temperature converter from 
 //  http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/
-// Will not work for color temperatures below 2700 or above 6000 
+// As commented, this will not work for color temperatures below 1900 or above 6600
+// Remove comments between *uncomment* lines
 def ctToRGB(ct) { 
+	float r
+    float g
+    float b
+    
+//	if (ct < 2500) ct = 2500				// Philips Hue effective minimum (stretched)
+//	if (ct > 6500) ct = 6500				// Philips Hue effective maximum (stretched)
 
+
+// *uncomment below for full algorithm*
+// if (ct < 1000) ct = 1000
+// if (ct > 40000) ct = 40000
 	ct = ct / 100
-	def r = 255
-	def g = 99.4708025861 * Math.log(ct) - 161.1195681661
-	def b = 138.5177312231 * Math.log(ct - 10) - 305.0447927307
-	log.debug("raw-> r: $r g: $g b: $b")
+//	if (ct <= 66 ) {
+    	r = 255
+		g = 99.4708025861 * Math.log(ct) - 161.1195681661
+//    }
+//    else {
+//    	r = 329.698727446 * Math.pow((ct-60), -0.1332047592)
+//        g = 288.1221695283 * Math.pow((ct-60), -0.0755148492)
+//    }
+//    if (r > 255) r = 255
+    if (g > 255) g = 255
+//	if (ct >= 66) {
+//    	b = 255
+//    }
+//    else {
+//    	if (ct <= 19) {
+//        	b = 0
+//        }
+//        else {
+        	b = 138.5177312231 * Math.log(ct - 10) - 305.0447927307
+//        }
+//    }
+    if (b > 255) b = 255
+// *uncomment above for full algorithm*
 
-// Apply Hue gamma adjustment
+//	log.debug("raw-> r: $r g: $g b: $b")
+
+// Apply Hue gamma adjustments
 	float red = r/255
    	float green = g/255
     float blue = b/255
-    log.debug ("decrgb-> r: $red g: $green b: $blue")
+//    log.debug ("decrgb-> r: $red g: $green b: $blue")
     
 	red = ((red > 0.04045f) ? Math.pow((red + 0.055f) / (1.0f + 0.055f), 2.4f) : (red / 12.92f)) * 255
 	green = ((green > 0.04045f) ? Math.pow((green + 0.055f) / (1.0f + 0.055f), 2.4f) : (green / 12.92f)) * 255
 	blue = ((blue > 0.04045f) ? Math.pow((blue + 0.055f) / (1.0f + 0.055f), 2.4f) : (blue / 12.92f)) * 255
-	log.debug("gamma-> r: $red g: $green b: $blue")
+//	log.debug("gamma-> r: $red g: $green b: $blue")
 
 	def rgb = [:]
-//	rgb = [r: r, g: g, b: b] 
 	rgb = [r: red, g: green, b: blue]
 	rgb
 }
@@ -189,13 +227,13 @@ def rgbToHSB(rgb) {
 	if (b < cmin) cmin = b;
     float delta = (cmax - cmin)
 
-//	brightness = cmax / 255;
-	brightness = ((cmax + cmin) / 2) / 255
+	brightness = cmax / 255;
+//	brightness = ((cmax + cmin) / 2) / 255
     
-//	if (cmax != 0) saturation = (cmax - cmin) / cmax;
-//	else saturation = 0;
-	saturation = 0
-	if (delta != 0)	saturation = (delta/255) / (1 - Math.abs((2*brightness)-1) )    	
+	if (cmax != 0) saturation = (cmax - cmin) / cmax;
+	else saturation = 0;
+//	saturation = 0
+//	if (delta != 0)	saturation = (delta/255) / (1 - Math.abs((2*brightness)-1) )    	
 
 	if (saturation == 0) hue = 0;
 	else hue = 0.60 * ((g - b) / (255 -  cmin)) % 360
