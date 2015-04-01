@@ -90,6 +90,9 @@ private def initialize() {
 
 def sunHandler(evt) {
 //	log.debug "$evt.name: $evt.value"
+	def maxK = 6000
+    def minK = 2700
+    def deltaK = maxK-minK
 
 	def after = getSunriseAndSunset()
 	def midDay = after.sunrise.time + ((after.sunset.time - after.sunrise.time) / 2)
@@ -103,30 +106,32 @@ def sunHandler(evt) {
     
 	if(location.mode == "Sleep") { 
 		log.info("this is starlight")
-		hsb = rgbToHSB(ctToRGB(6000))
+		hsb = rgbToHSB(ctToRGB(maxK))
 		hsb.b = 2
 	}
 	else if(currentTime < after.sunrise.time) {
 		log.info("this is early twilight")
-		hsb = rgbToHSB(ctToRGB(2700))
+		hsb = rgbToHSB(ctToRGB(minK))
 	}
 	else if(currentTime > after.sunset.time) { 
 		log.info("this is late twilight")
-		hsb = rgbToHSB(ctToRGB(2700))
+		hsb = rgbToHSB(ctToRGB(minK))
 	}
 	else {
 //    	log.debug("this is daylight")
 		if(currentTime < midDay) { 
-			def temp = 2700 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 3300)
+			def temp = minK + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * deltaK)
 			log.info("this is morning: $temp")
 			hsb = rgbToHSB(ctToRGB(temp))
 		}
 		else { 
-			def temp = 6000 - ((currentTime - midDay) / (after.sunset.time - midDay) * 3300)
+			def temp = maxK - ((currentTime - midDay) / (after.sunset.time - midDay) * deltaK)
             log.info("this is afternoon: $temp")
 			hsb = rgbToHSB(ctToRGB(temp))
 		}
 	}
+    
+//    hsb = rgbToHSB(ctToRGB(maxK))
 
  	def newValue = [hue: Math.round(hsb.h) as Integer, saturation: Math.round(hsb.s) as Integer, level: Math.round(hsb.b) as Integer ?: 1]
 	if (newValue != state.oldValue) {
@@ -148,11 +153,22 @@ def ctToRGB(ct) {
 	def r = 255
 	def g = 99.4708025861 * Math.log(ct) - 161.1195681661
 	def b = 138.5177312231 * Math.log(ct - 10) - 305.0447927307
+	log.debug("raw-> r: $r g: $g b: $b")
 
-//	log.debug("r: $r g: $g b: $b")
+// Apply Hue gamma adjustment
+	float red = r/255
+   	float green = g/255
+    float blue = b/255
+    log.debug ("decrgb-> r: $red g: $green b: $blue")
+    
+	red = ((red > 0.04045f) ? Math.pow((red + 0.055f) / (1.0f + 0.055f), 2.4f) : (red / 12.92f)) * 255
+	green = ((green > 0.04045f) ? Math.pow((green + 0.055f) / (1.0f + 0.055f), 2.4f) : (green / 12.92f)) * 255
+	blue = ((blue > 0.04045f) ? Math.pow((blue + 0.055f) / (1.0f + 0.055f), 2.4f) : (blue / 12.92f)) * 255
+	log.debug("gamma-> r: $red g: $green b: $blue")
 
 	def rgb = [:]
-	rgb = [r: r, g: g, b: b] 
+//	rgb = [r: r, g: g, b: b] 
+	rgb = [r: red, g: green, b: blue]
 	rgb
 }
 
