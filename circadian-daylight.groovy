@@ -95,7 +95,7 @@ private def initialize() {
 def sunHandler(evt) {
 //	log.debug "$evt.name: $evt.value"
 	def maxK = 6500
-	def minK = 2500
+	def minK = 3000 		// sunrise/sunset on a clear day
 	def deltaK = maxK-minK
 
 	def after = getSunriseAndSunset()
