@@ -95,9 +95,9 @@ private def initialize() {
 
 def sunHandler(evt) {
 //	log.debug "$evt.name: $evt.value"
-	def maxK = 6500
-	def minK = 2700
-	def deltaK = maxK-minK
+	Integer maxK = 6500
+	Integer minK = 3000
+	Integer deltaK = maxK-minK
 
 	def after = getSunriseAndSunset()
 	def midDay = after.sunrise.time + ((after.sunset.time - after.sunrise.time) / 2)
@@ -105,7 +105,7 @@ def sunHandler(evt) {
 	def currentTime = now()
 //	log.debug "difference is $midDay : mode ${location.mode} :: $currentTime : ${location.mode}"
 
-    def temp
+    Integer temp
     
 	if(location.mode == "Night") { 
 //		log.info("this is starlight")
@@ -135,7 +135,7 @@ def sunHandler(evt) {
     
     def hsb = rgbToHSB(ctToRGB(temp))
 	if (location.mode == "Night") hsb.b = 2;			// special for night sky simulation (could/should be bluer value perhaps
-    else hsb.b = (temp / maxK) * 100;					// use a relative percentage of lightness
+    else hsb.b = Math.min( Math.round( ( ( temp - ( minK*0.8 ) ) / deltaK ) * 100 ) as Integer, 100);	// use a relative percentage of lightness (20%-->100%)
     
  	def newValue = [hue: Math.round(hsb.h) as Integer, saturation: Math.round(hsb.s) as Integer, level: Math.round(hsb.b) as Integer ?: 1]
 	if (newValue != atomicState.oldValue) {				// avoid updating all the lights unnecessarily for efficiency
