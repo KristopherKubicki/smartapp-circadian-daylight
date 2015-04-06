@@ -1,5 +1,5 @@
 /**
- *  Circadian Daylight
+ *  Circadian Daylight 1.2
  *
  *  This SmartApp synchronizes your color changing lights with local perceived color  
  *     temperature of the sky throughout the day.  This gives your environment a more 
@@ -39,6 +39,7 @@
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
  *		2700K (warm white) until your hub goes into Night mode
  *
+ *  Version 1.2: April 6, 2015 - Add support for LIGHTIFY bulbs, dimmers and user selected "Sleep"
  *  Version 1.1: April 1, 2015 - Add support for contact sensors 
  *  Version 1.0: March 30, 2015 - Initial release
  *  
@@ -59,16 +60,25 @@ definition(
 
 preferences {
 	section("When these switches turn on...") {
-		input "switches", "capability.switch", title: "Which switches?", multiple:true
+		input "switches", "capability.switch", title: "Which switches?", multiple:true, required: false
 	}
 	section("Or these motion sensors are activated...") {
-		input "motions", "capability.motionSensor", title: "Which motions?", multiple:true
+		input "motions", "capability.motionSensor", title: "Which motions?", multiple:true, required: false
 	}
     section("Or these contact sensors are opened...") {
-		input "contacts", "capability.contactSensor", title: "Which contacts?", multiple:true
+		input "contacts", "capability.contactSensor", title: "Which contacts?", multiple:true, required: false
 	}
-	section("Control these bulbs...") {
-		input "bulbs", "capability.colorControl", title: "Which Hue Bulbs?", multiple:true
+	section("Control these Color Changing bulbs...") {
+		input "bulbs", "capability.colorControl", title: "Which Color Changing Bulbs?", multiple:true, required: false
+	}
+    section("Control these Temperature Changing bulbs...") {
+		input "cbulbs", "capability.colorControl", title: "Which Temperature Changing Bulbs?", multiple:true, required: false
+	}
+    section("Control these Dimming bulbs...") {
+		input "dimmers", "capability.switchLevel", title: "Which Dimming Bulbs?", multiple:true, required: false
+	}
+    section("What are your 'Sleep' modes?") {
+		input "smodes", "mode", title: "What are your Sleep modes?", multiple:true, required: false
 	}
 }
 
@@ -88,6 +98,21 @@ private def initialize() {
 	subscribe(switches, "switch", sunHandler)
 	subscribe(motions, "motion", sunHandler)
     subscribe(contacts, "contact", sunHandler)
+	subscribe(dimmers, "switch.on", sunHandler)
+    subscribe(cbulbs, "switch.on", sunHandler)
+    subscribe(bulbs, "switch.on", sunHandler)
+
+	subscribe(location, "mode", modeHandler)
+
+}
+
+// If we detect the Hub moving into a sleep mode, also activate the handler
+def modeHandler(evt) {
+	for (smode in smodes) { 
+    	if(location.mode == smode) { 
+        	sunHandler(evt)
+        }
+	}
 }
 
 def sunHandler(evt) {
@@ -97,52 +122,74 @@ def sunHandler(evt) {
 	def midDay = after.sunrise.time + ((after.sunset.time - after.sunrise.time) / 2)
 
 	def currentTime = now()
-	log.debug "difference is $midDay : mode ${location.mode} :: $currentTime : ${location.mode}"
-
     
-//	def hsl = rgbToHSL(ctToRGB(6000))
-	def hsb
-    
-	if(location.mode == "Sleep") { 
-//		log.debug("this is starlight")
-		hsb = rgbToHSB(ctToRGB(6000))
-		hsb.b = 2
-	}
-	else if(currentTime < after.sunrise.time) {
+	def int colorTemp = 2700    
+	if(currentTime < after.sunrise.time) {
 //		log.debug("this is early twilight")
-		hsb = rgbToHSB(ctToRGB(2700))
+		colorTemp = 2700
 	}
 	else if(currentTime > after.sunset.time) { 
 //		log.debug("this is late twilight")
-		hsb = rgbToHSB(ctToRGB(2700))
+		colorTemp = 2700
 	}
 	else {
 //    	log.debug("this is daylight")
 		if(currentTime < midDay) { 
-			def temp = 2700 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 3300)
-//			log.debug("this is morning: $temp")
-			hsb = rgbToHSB(ctToRGB(temp))
+			colorTemp = 2700 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 3300)
+//			log.debug("this is morning: $colorTemp")
 		}
 		else { 
-			def temp = 6000 - ((currentTime - midDay) / (after.sunset.time - midDay) * 3300)
-//            log.debug("this is afternoon: $temp")
-			hsb = rgbToHSB(ctToRGB(temp))
+			colorTemp = 6000 - ((currentTime - midDay) / (after.sunset.time - midDay) * 3300)
+//            log.debug("this is afternoon: $colorTemp")
 		}
 	}
+    def hsb = rgbToHSB(ctToRGB(colorTemp))
+// wait for bulbs to turn on ?
+    pause(150) 	 
+	
+    for (smode in smodes) {
+		if(location.mode == smode) { 	
+//			log.debug("this is starlight")
+			colorTemp = 6000
+			hsb = rgbToHSB(ctToRGB(colorTemp))
+			hsb.b = 1
+        
+        	for (dimmer in dimmers) { 
+            	if(dimmer.currentValue("level") != 1 && dimmer.currentValue("switch") == "on") {
+    				dimmer.setLevel(1)
+                }
+    		}
+        	for (cbulb in cbulbs) { 
+            	if(cbulb.latestValue("level") != 1) { 
+    				cbulb.setLevel(1)
+                }
+    		}
+        }
+	}
+    log.debug "Setting color temperature to $colorTemp"
     
     
-	for ( bulb in bulbs) { 
-//		log.debug "Updated with daylight hueColor: ${hsb.h} ${hsb.s} ${hsb.b}"
- 	 	def newValue = [hue: hsb.h as Integer, saturation: hsb.s as Integer, level: hsb.b as Integer ?: 1]
-//		log.debug "new value = $newValue :: $midDay"
-		bulb.setColor(newValue)
-	}   
+	for (cbulb in cbulbs) { 
+        if(cbulb.currentValue("kelvin") != colorTemp) { 
+//			log.debug "Updated $cbulb with $colorTemp"
+			cbulb.setColorTemp(colorTemp)
+        }
+	}
+ 			
+//    log.debug "Updated bulbs with daylight hueColor: ${hsb.h} ${hsb.s} ${hsb.b} ($colorTemp)"   
+	for (bulb in bulbs) {
+ 	 		def newValue = [hue: hsb.h as Integer, saturation: hsb.s as Integer, level: hsb.b as Integer ?: 1]
+			bulb.setColor(newValue)  
+	}
 }
 
 // Based on color temperature converter from 
 //  http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/
-// Will not work for color temperatures from 2700 to 6000 
+// Will not work for color temperatures outside of 2700 to 6000 
 def ctToRGB(ct) { 
+
+	if(ct < 2700) { ct = 2700 }
+    if(ct > 6000) { ct = 6000 }
 
 	ct = ct / 100
 	def r = 255
