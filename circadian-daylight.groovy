@@ -1,5 +1,5 @@
 /**
- *  Circadian Daylight 1.2
+ *  Circadian Daylight
  *
  *  This SmartApp synchronizes your color changing lights with local perceived color  
  *     temperature of the sky throughout the day.  This gives your environment a more 
@@ -39,7 +39,7 @@
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
  *		2700K (warm white) until your hub goes into Night mode
  *
- *  Version 1.2: April 6, 2015 - Add support for LIGHTIFY bulbs, dimmers and user selected "Sleep"
+ *  Version 1.2: April 7, 2015 - Add support for LIGHTIFY bulbs, dimmers and user selected "Sleep"
  *  Version 1.1: April 1, 2015 - Add support for contact sensors 
  *  Version 1.0: March 30, 2015 - Initial release
  *  
@@ -160,9 +160,7 @@ def sunHandler(evt) {
                 }
     		}
         	for (cbulb in cbulbs) { 
-            	if(cbulb.latestValue("level") != 1) { 
     				cbulb.setLevel(1)
-                }
     		}
         }
 	}
@@ -170,10 +168,14 @@ def sunHandler(evt) {
     
     
 	for (cbulb in cbulbs) { 
-        if(cbulb.currentValue("kelvin") != colorTemp) { 
+//  I thought the best way to do this was to be clever about triggering this on specific occassions
+// However, since the zigbee controller might not receive the command, just hammering the device 
+// seems to work really well
+
+//        if(cbulb.currentValue("kelvin") != colorTemp) { 
 //			log.debug "Updated $cbulb with $colorTemp"
 			cbulb.setColorTemp(colorTemp)
-        }
+//        }
 	}
  			
 //    log.debug "Updated bulbs with daylight hueColor: ${hsb.h} ${hsb.s} ${hsb.b} ($colorTemp)"   
