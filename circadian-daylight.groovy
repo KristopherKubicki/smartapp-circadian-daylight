@@ -1,5 +1,5 @@
 /**
- *  Circadian Daylight
+ *  Circadian Daylight 1.4
  *
  *  This SmartApp synchronizes your color changing lights with local perceived color  
  *     temperature of the sky throughout the day.  This gives your environment a more 
@@ -39,6 +39,8 @@
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
  *		2700K (warm white) until your hub goes into Night mode
  *
+ *  Version 1.4: May 21, 2015 - Clean up mode handling
+ *  Version 1.3: April 8, 2015 - Reduced Hue IO, increased robustness
  *  Version 1.2: April 7, 2015 - Add support for LIGHTIFY bulbs, dimmers and user selected "Sleep"
  *  Version 1.1: April 1, 2015 - Add support for contact sensors 
  *  Version 1.0: March 30, 2015 - Initial release
@@ -54,8 +56,8 @@ definition(
 	author: "kristopher@acm.org",
 	description: "Sync your color changing lights with natural daylight hues",
 	category: "Green Living",
-	iconUrl: "https://s3.amazonaws.com/smartapp-icons/Partner/hue.png",
-	iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Partner/hue@2x.png"
+	iconUrl: "https://s3.amazonaws.com/smartapp-icons/MiscHacking/mindcontrol.png",
+	iconX2Url: "https://s3.amazonaws.com/smartapp-icons/MiscHacking/mindcontrol@2x.png"
 )
 
 preferences {
@@ -72,7 +74,7 @@ preferences {
 		input "bulbs", "capability.colorControl", title: "Which Color Changing Bulbs?", multiple:true, required: false
 	}
     section("Control these Temperature Changing bulbs...") {
-		input "cbulbs", "capability.colorControl", title: "Which Temperature Changing Bulbs?", multiple:true, required: false
+		input "cbulbs", "capability.switchLevel", title: "Which Temperature Changing Bulbs?", multiple:true, required: false
 	}
     section("Control these Dimming bulbs...") {
 		input "dimmers", "capability.switchLevel", title: "Which Dimming Bulbs?", multiple:true, required: false
@@ -95,24 +97,52 @@ def updated() {
 
 private def initialize() {
 	log.debug("initialize() with settings: ${settings}")
-	subscribe(switches, "switch", sunHandler)
+	subscribe(switches, "switch", switchHandler)
+    
 	subscribe(motions, "motion", sunHandler)
     subscribe(contacts, "contact", sunHandler)
 	subscribe(dimmers, "switch.on", sunHandler)
     subscribe(cbulbs, "switch.on", sunHandler)
     subscribe(bulbs, "switch.on", sunHandler)
-
+    
 	subscribe(location, "mode", modeHandler)
-
 }
 
 // If we detect the Hub moving into a sleep mode, also activate the handler
 def modeHandler(evt) {
+
+	def success = 0
 	for (smode in smodes) { 
     	if(location.mode == smode) { 
+        	success == 1
         	sunHandler(evt)
         }
 	}
+    if(success == 0) { 
+    	for(dimmer in dimmers) { 
+        	if(dimmer.currentValue("switch") == "on") { 
+    			dimmer.setLevel(100)
+            }
+        }
+        for(bulb in bulbs) { 
+        	if(bulb.currentValue("switch") == "on") { 
+        		bulb.setLevel(100)
+            }
+        }
+        for(cbulb in cbulbs) {
+        	if(cbulb.currentValue("switch") == "on") { 
+        		cbulb.setLevel(100)
+            }
+        }
+    }
+}
+
+// wait for bulbs to turn on
+def switchHandler(evt) {
+	runIn(1,sunHandler,[overwrite: false])
+    runIn(3,sunHandler,[overwrite: false])
+    runIn(5,sunHandler,[overwrite: false])
+    runIn(10,sunHandler,[overwrite: false])
 }
 
 def sunHandler(evt) {
@@ -144,8 +174,6 @@ def sunHandler(evt) {
 		}
 	}
     def hsb = rgbToHSB(ctToRGB(colorTemp))
-// wait for bulbs to turn on ?
-    pause(150) 	 
 	
     for (smode in smodes) {
 		if(location.mode == smode) { 	
@@ -154,35 +182,35 @@ def sunHandler(evt) {
 			hsb = rgbToHSB(ctToRGB(colorTemp))
 			hsb.b = 1
         
-        	for (dimmer in dimmers) { 
-            	if(dimmer.currentValue("level") != 1 && dimmer.currentValue("switch") == "on") {
-    				dimmer.setLevel(1)
+        	for(dimmer in dimmers) { 
+            	if(dimmer.currentValue("switch") == "on") { 
+        			dimmer.setLevel(1)
                 }
-    		}
-        	for (cbulb in cbulbs) { 
-    				cbulb.setLevel(1)
-    		}
+            }
+            for(cbulb in cbulbs) { 
+            	if(cbulb.currentValue("switch") == "on") {
+                	cbulb.setLevel(1)
+                }
+            }
         }
 	}
-    log.debug "Setting color temperature to $colorTemp"
     
-    
-	for (cbulb in cbulbs) { 
-//  I thought the best way to do this was to be clever about triggering this on specific occassions
-// However, since the zigbee controller might not receive the command, just hammering the device 
-// seems to work really well
-
-//        if(cbulb.currentValue("kelvin") != colorTemp) { 
-//			log.debug "Updated $cbulb with $colorTemp"
+    for(cbulb in cbulbs) { 
+    	if(cbulb.currentValue("switch") == "on") {
 			cbulb.setColorTemp(colorTemp)
-//        }
-	}
+        }
+    }
+
+    hsb.h = hsb.h as Integer
+    hsb.s = hsb.s as Integer
+    hsb.b = hsb.b as Integer ?: 1
  			
-//    log.debug "Updated bulbs with daylight hueColor: ${hsb.h} ${hsb.s} ${hsb.b} ($colorTemp)"   
-	for (bulb in bulbs) {
- 	 		def newValue = [hue: hsb.h as Integer, saturation: hsb.s as Integer, level: hsb.b as Integer ?: 1]
-			bulb.setColor(newValue)  
-	}
+ 	def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b ]
+    for(bulb in bulbs) { 
+    	if(bulb.currentValue("switch") == "on") {
+			bulb.setColor(newValue) 
+        }
+    }
 }
 
 // Based on color temperature converter from 
@@ -206,9 +234,6 @@ def ctToRGB(ct) {
 }
 
 
-// Based on color calculator from
-//  http://codeitdown.com/hsl-hsb-hsv-color/
-// 
 def rgbToHSB(rgb) {
 	def r = rgb.r
 	def g = rgb.g
