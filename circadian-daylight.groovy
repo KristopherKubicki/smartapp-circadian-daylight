@@ -1,5 +1,5 @@
 /**
- *  Circadian Daylight 1.4
+ *  Circadian Daylight 1.5
  *
  *  This SmartApp synchronizes your color changing lights with local perceived color  
  *     temperature of the sky throughout the day.  This gives your environment a more 
@@ -39,6 +39,7 @@
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
  *		2700K (warm white) until your hub goes into Night mode
  *
+ *  Version 1.5: June 26, 2015 - Merged with SANdood's optimizations, breaks unofficial LIGHTIFY support
  *  Version 1.4: May 21, 2015 - Clean up mode handling
  *  Version 1.3: April 8, 2015 - Reduced Hue IO, increased robustness
  *  Version 1.2: April 7, 2015 - Add support for LIGHTIFY bulbs, dimmers and user selected "Sleep"
@@ -86,14 +87,16 @@ preferences {
 
 
 def installed() {
+	unsubscribe()
+    unschedule()
 	initialize()
 }
 
 def updated() {
 	unsubscribe()
+    unschedule()
 	initialize()
 }
-
 
 private def initialize() {
 	log.debug("initialize() with settings: ${settings}")
@@ -197,7 +200,7 @@ def sunHandler(evt) {
     
     for(cbulb in cbulbs) { 
     	if(cbulb.currentValue("switch") == "on") {
-			cbulb.setColorTemp(colorTemp)
+			cbulb.setColorTemperature(colorTemp)
         }
     }
 
@@ -205,7 +208,7 @@ def sunHandler(evt) {
     hsb.s = hsb.s as Integer
     hsb.b = hsb.b as Integer ?: 1
  			
- 	def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b ]
+ 	def newValue = [hue: Math.round(hsb.h) as Integer, saturation: Math.round(hsb.s) as Integer, level: Math.round(hsb.b) as Integer ?: 1]
     for(bulb in bulbs) { 
     	if(bulb.currentValue("switch") == "on") {
 			bulb.setColor(newValue) 
@@ -215,7 +218,7 @@ def sunHandler(evt) {
 
 // Based on color temperature converter from 
 //  http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/
-// Will not work for color temperatures outside of 2700 to 6000 
+// As commented, this will not work for color temperatures below 2700 or above 6000
 def ctToRGB(ct) { 
 
 	if(ct < 2700) { ct = 2700 }
@@ -233,7 +236,10 @@ def ctToRGB(ct) {
 	rgb
 }
 
-
+// Based on color calculator from
+//  http://codeitdown.com/hsl-hsb-hsv-color/		 
+// Corrected brightness and saturation using calculator from
+//  http://www.rapidtables.com/convert/color/rgb-to-hsl.htm
 def rgbToHSB(rgb) {
 	def r = rgb.r
 	def g = rgb.g
@@ -245,9 +251,10 @@ def rgbToHSB(rgb) {
 	float cmin = (r < g) ? r : g;
 	if (b < cmin) cmin = b;
 
-	brightness = cmax / 255;
-	if (cmax != 0) saturation = (cmax - cmin) / cmax;
-	else saturation = 0;
+	float delta = (cmax - cmin)
+	brightness = ((cmax + cmin) / 2) / 255
+	saturation = 0
+	if (delta != 0)	saturation = (delta/255) / (1 - ((2*brightness)-1))    	
 		
 	if (saturation == 0) hue = 0;
 	else hue = 0.60 * ((g - b) / (255 -  cmin)) % 360
@@ -255,6 +262,6 @@ def rgbToHSB(rgb) {
 //	log.debug("h: $hue s: $saturation b: $brightness")
  
 	def hsb = [:]    
-	hsb = [h: hue * 100, s: saturation * 100, b: brightness * 100]
+	hsb = [h: Math.round(hue * 100) as Integer, s: Math.round(saturation * 100) as Integer, b: Math.round(brightness * 100) as Integer]
 	hsb
 }
