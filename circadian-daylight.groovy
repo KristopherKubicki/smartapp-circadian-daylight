@@ -1,5 +1,5 @@
 /**
- *  Circadian Daylight 1.5.1
+ *  Circadian Daylight 2.0
  *
  *  This SmartApp synchronizes your color changing lights with local perceived color  
  *     temperature of the sky throughout the day.  This gives your environment a more 
@@ -14,13 +14,7 @@
  * 	hues.  Hormone production, brainwave activity, mood and wakefulness are 
  * 	just some of the cognitive functions tied to cyclical natural light.
  *	http://en.wikipedia.org/wiki/Zeitgeber
- *
- *  The SmartApp is completely dependent on "things happening" in your environment:
- *     specifically, motion or switches.  I originally intended for this app to run
- *     on a schedule, but SmartThings tends to not publish applications that have 
- *     an internal scheduler call.  If you want to hack a scheduler into this app, 
- *     just add "schedule(0 0/5 * * * ?, sunHandler)" into the initialize() routine 
- *  
+ * 
  *  Here's some further reading:
  * 
  * http://www.cambridgeincolour.com/tutorials/sunrise-sunset-calculator.htm
@@ -39,6 +33,7 @@
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
  *		2700K (warm white) until your hub goes into Night mode
  *
+ *  Version 2.0: September 19, 2015 - Update for Hub 2.0
  *  Version 1.5: June 26, 2015 - Merged with SANdood's optimizations, breaks unofficial LIGHTIFY support
  *  Version 1.4: May 21, 2015 - Clean up mode handling
  *  Version 1.3: April 8, 2015 - Reduced Hue IO, increased robustness
@@ -77,6 +72,9 @@ preferences {
     section("Enabled Dynamic Brightness?") { 
     	input "dbright","bool", title: "Yes or no?", required: false
     }
+    section("Enabled Campfire instead of Moonlight?") { 
+    	input "dcamp","bool", title: "Yes or no?", required: false
+    }
 }
 
 
@@ -111,22 +109,37 @@ private def initialize() {
 
 def dimmerHandler(evt) { 
 	def hsb = getHSB()
-    dimmers?.setLevel(hsb.b)
+    for(dimmer in dimmers) { 
+        if(dimmer.currentValue("switch") == "on" && dimmer.currentValue("level") != hsb.b) {     
+        	log.debug "DIMMER2: ${hsb.b} "
+    		dimmer.setLevel(hsb.b)
+		}
+	}
 }
 
 def ctbulbHandler(evt) {
 	def hsb = getHSB()
     def colorTemp = getCT()
-	log.debug "LEVEL: ${hsb.b} : $colorTemp"
-	ctbulbs?.setLevel(hsb.b)
-    ctbulbs?.setColorTemperature(colorTemp)
+    for(ctbulb in ctbulb) { 
+        if(ctbulb.currentValue("switch") == "on") {
+        	if(ctbulb.currentValue("level") != hsb.b) { 
+    			ctbulb.setLevel(hsb.b)
+            }
+            ctbulb.setColorTemperature(colorTemp)
+		}
+	}
+    
 }
 
 def bulbHandler(evt) { 
 	def hsb = getHSB()
 	def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
     log.debug "updating ${evt.deviceId} with ${hsb}"
-	bulbs?.setColor(newValue) 
+    for(bulb in bulbs) {
+    	if(bulb.currentValue("switch") == "on") {
+			bulb.setColor(newValue)
+        }
+     }
 }
 
 
@@ -136,8 +149,8 @@ def modeHandler(evt) {
 
 	def hsb = getHSB()
     def colorTemp = getCT() 
-    for(dimmer in dimmers) { 
-        if(dimmer.currentValue("switch") == "on") {      	
+    for(dimmer in dimmers) {
+        if(dimmer.currentValue("switch") == "on" && dimmer.currentValue("level") != hsb.b) {     
     		dimmer.setLevel(hsb.b)
 		}
 	}
@@ -149,8 +162,9 @@ def modeHandler(evt) {
 	}
 	for(cbulb in cbulbs) {
 		if(cbulb.currentValue("switch") == "on") { 
-        	log.debug "LEVEL: ${hsb.b} : $colorTemp"
-        	cbulb.setLevel(hsb.b)
+        	if(cbulb.curentValue("level") != hsb.b) { 
+        		cbulb.setLevel(hsb.b)
+            }
             cbulb.setColorTemperature(colorTemp)
 		}
 	}
@@ -181,6 +195,9 @@ def getCT() {
     for (smode in smodes) {
 		if(location.mode == smode) { 	
 			colorTemp = 6000
+            if(dcamp == true) {
+            	colorTemp = 2700
+            }
        	}
 	}
     return colorTemp
@@ -213,9 +230,15 @@ def getHSB() {
     
     for (smode in smodes) {
 		if(location.mode == smode) { 	
-			log.debug("this is starlight")
-			colorTemp = 6000
+			log.debug("this is moonlight")
+            if(dcamp == true) { 
+            	colorTemp = 2700
+            }
+            else {
+				colorTemp = 6000
+            }
 			brightness = 0.01
+            last
        	}
 	}
     if(dbright == false) { 
@@ -264,12 +287,12 @@ def rgbToHSB(rgb,brightness) {
 
 	float delta = (cmax - cmin)
 	saturation = 0
-	if (delta != 0)	saturation = (delta/255) / (1 - ((2*brightness)-1))    	
+    if(delta != 0) saturation = delta / cmax
 		
 	if (saturation == 0) hue = 0;
 	else hue = 0.60 * ((g - b) / (255 -  cmin)) % 360
 
-//	log.debug("h: $hue s: $saturation b: $brightness")
+	log.debug("h: $hue s: $saturation b: $brightness")
  
 	def hsb = [:]    
 	hsb = [h: Math.round(hue * 100) as Integer, s: Math.round(saturation * 100) as Integer, b: Math.round(brightness * 100) as Integer ?: 100]
