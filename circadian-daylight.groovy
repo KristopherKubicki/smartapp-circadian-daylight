@@ -160,12 +160,12 @@ def modeHandler(evt) {
 			bulb.setColor(newValue) 
 		}
 	}
-	for(cbulb in cbulbs) {
-		if(cbulb.currentValue("switch") == "on") { 
-        	if(cbulb.curentValue("level") != hsb.b) { 
-        		cbulb.setLevel(hsb.b)
+	for(ctbulb in ctbulbs) {
+		if(ctbulb.currentValue("switch") == "on") { 
+        	if(ctbulb.currentValue("level") != hsb.b) { 
+        		ctbulb.setLevel(hsb.b)
             }
-            cbulb.setColorTemperature(colorTemp)
+            ctbulb.setColorTemperature(colorTemp)
 		}
 	}
 }
@@ -227,7 +227,10 @@ def getHSB() {
             brightness = 1 - ((currentTime - midDay) / (after.sunset.time - midDay))
 		}
 	}
-    
+
+    if(dbright == false) { 
+    	brightness = 1
+    }
     for (smode in smodes) {
 		if(location.mode == smode) { 	
 			log.debug("this is moonlight")
@@ -241,9 +244,7 @@ def getHSB() {
             last
        	}
 	}
-    if(dbright == false) { 
-    	brightness = 1
-    }
+
     
     def hsb = rgbToHSB(ctToRGB(colorTemp),brightness)
     return hsb
