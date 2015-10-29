@@ -60,12 +60,16 @@ preferences {
 	section("If these motion sensors are activated...") {
 		input "motions", "capability.motionSensor", title: "Which motion sensors?", multiple:true, required: false
 		input "contacts", "capability.contactSensor", title: "And/or which contact sensors?", multiple:true, required: false
+		input "switches", "capability.switch", title: "And/or which switches?", multiple:true, required: false
 	}
 	section("Control these bulbs...") {
 		input "bulbs", "capability.colorControl", title: "Which Color Changing Bulbs?", multiple:true, required: false
 		input "ctbulbs", "capability.colorTemperature", title: "Which Temperature Changing Bulbs?", multiple:true, required: false
 		input "dimmers", "capability.switchLevel", title: "Which Dimmers?", multiple:true, required: false
 	}
+	section("Update during daytime only?") {
+    	input name: "nonight", type: "bool", title: "Yes or no?", defaultValue: false, required:true
+    }
     section("What are your 'Sleep' modes?") {
 		input "smodes", "mode", title: "What are your Sleep modes?", multiple:true, required: false
 	}
@@ -95,6 +99,7 @@ private def initialize() {
   
 	subscribe(motions, "motion", modeHandler)
     subscribe(contacts, "contact", modeHandler)
+    subscribe(switches, "switch", modeHandler)
     if(dimmers) { 
 		subscribe(dimmers, "switch.on", dimmerHandler)
 	}
@@ -105,6 +110,8 @@ private def initialize() {
     	subscribe(bulbs, "switch.on", bulbHandler)
     }
 	subscribe(location, "mode", modeHandler)
+	atomicState.oldValue = []						// atomic so we avoid calculations on multiple concurrent events
+    atomicState.oldTemp = 0
 }
 
 def dimmerHandler(evt) { 
@@ -146,6 +153,15 @@ def bulbHandler(evt) {
 
 // wait for bulbs to turn on
 def modeHandler(evt) {
+	
+	if (nonight) {
+    	def after = getSunriseAndSunset()
+        def currentTime = now()
+        if ((currentTime < after.sunrise.time) || (currentTime > after.sunset.time)) { 
+        	log.info "nonight, returning"
+            return 
+        }
+    }
 
 	def hsb = getHSB()
     def colorTemp = getCT() 
