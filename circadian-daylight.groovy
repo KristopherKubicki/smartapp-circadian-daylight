@@ -91,13 +91,15 @@ private def initialize() {
 //	schedule("0 */6 * * * ?", sunHandler)			// "gentle" polling every 6 minutes
 	atomicState.oldValue = []						// atomic so we avoid calculations on multiple concurrent events
     atomicState.oldTemp = 0
+    atomicState.oldBright = 999
 }
 
 def sunHandler(evt) {
 //	log.debug "$evt.name: $evt.value"
-	Integer maxK = 6500
-	Integer minK = 3000
+	Integer maxK = 6000
+	Integer minK = 2700
 	Integer deltaK = maxK-minK
+	def brightness = 1
 
 	def after = getSunriseAndSunset()
 	def midDay = after.sunrise.time + ((after.sunset.time - after.sunrise.time) / 2)
@@ -109,7 +111,7 @@ def sunHandler(evt) {
     
 	if(location.mode == "Night") { 
 //		log.info("this is starlight")
-		temp = maxK
+		temp = minK
 	}
 	else if(currentTime < after.sunrise.time) {
 //		log.info("this is early twilight")
@@ -122,26 +124,38 @@ def sunHandler(evt) {
 	else {
 		if(currentTime < midDay) { 
 			temp = Math.round(minK + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * deltaK)) // we dont need the decimal precision here
-//			log.info("this is morning daylight: $temp")
+			brightness = Math.round(((currentTime - after.sunrise.time) / (midDay - after.sunrise.time)) * 100)
+//			log.info("this is morning daylight: $temp $brightness")
 		}
 		else { 
-			temp = Math.round(maxK - ((currentTime - midDay) / (after.sunset.time - midDay) * deltaK))
-//			log.info("this is afternoon daylight: $temp")
+			temp = Math.round(maxK - ((currentTime - midDay) / (after.sunset.time - midDay) * deltaK)) * 100
+			brightness = Math.round(1 - ((currentTime - midDay) / (after.sunset.time - midDay)))
+//			log.info("this is afternoon daylight: $temp $brightness")
 		}
 	}
 
-	if (temp == atomicState.oldTemp) return;			// avoid the redundant calculations for efficiency
+	if ((temp == atomicState.oldTemp) && (brightness == atomicState.oldBright)) return;			// avoid the redundant calculations for efficiency
     atomicState.oldTemp = temp
+    atomicState.oldBright = brightness
     
     def hsb = rgbToHSB(ctToRGB(temp))
-	if (location.mode == "Night") hsb.b = 2;			// special for night sky simulation (could/should be bluer value perhaps
-    else hsb.b = Math.min( Math.round( ( ( temp - ( minK*0.8 ) ) / deltaK ) * 100 ) as Integer, 100);	// use a relative percentage of lightness (20%-->100%)
+
+	if (location.mode == "Night") { brightness = 2 }			// special for night sky simulation (could/should be bluer value perhaps
+    hsb.b = brightness
+    
+//    else hsb.b = Math.min( Math.round( ( ( temp - ( minK*0.8 ) ) / deltaK ) * 100 ) as Integer, 100);	// use a relative percentage of lightness (20%-->100%)
     
  	def newValue = [hue: Math.round(hsb.h) as Integer, saturation: Math.round(hsb.s) as Integer, level: Math.round(hsb.b) as Integer ?: 1]
 	if (newValue != atomicState.oldValue) {				// avoid updating all the lights unnecessarily for efficiency
 		atomicState.oldValue = newValue
 		log.info "Updated with daylight hueColor: $newValue"
-		bulbs?.setColor(newValue)
+	//	bulbs?.setColor(newValue)
+	
+		for(bulb in bulbs) {
+    		if(bulb.currentValue("switch") == "on") {
+				bulb.setColor(newValue)
+        	}
+		}
 	}   
 }
 
