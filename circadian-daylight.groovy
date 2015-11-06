@@ -1,5 +1,5 @@
 /**
- *  Circadian Daylight 2.0
+ *  Circadian Daylight 2.1
  *
  *  This SmartApp synchronizes your color changing lights with local perceived color  
  *     temperature of the sky throughout the day.  This gives your environment a more 
@@ -33,6 +33,7 @@
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
  *		2700K (warm white) until your hub goes into Night mode
  *
+ *  Version 2.1: October 27, 2015 - Replace motion sensors with time
  *  Version 2.0: September 19, 2015 - Update for Hub 2.0
  *  Version 1.5: June 26, 2015 - Merged with SANdood's optimizations, breaks unofficial LIGHTIFY support
  *  Version 1.4: May 21, 2015 - Clean up mode handling
@@ -57,10 +58,10 @@ definition(
 )
 
 preferences {
-	section("If these motion sensors are activated...") {
-		input "motions", "capability.motionSensor", title: "Which motion sensors?", multiple:true, required: false
-		input "contacts", "capability.contactSensor", title: "And/or which contact sensors?", multiple:true, required: false
-	}
+//	section("If these motion sensors are activated...") {
+//		input "motions", "capability.motionSensor", title: "Which motion sensors?", multiple:true, required: false
+//		input "contacts", "capability.contactSensor", title: "And/or which contact sensors?", multiple:true, required: false
+//	}
 	section("Control these bulbs...") {
 		input "bulbs", "capability.colorControl", title: "Which Color Changing Bulbs?", multiple:true, required: false
 		input "ctbulbs", "capability.colorTemperature", title: "Which Temperature Changing Bulbs?", multiple:true, required: false
@@ -92,9 +93,9 @@ def updated() {
 
 private def initialize() {
 	log.debug("initialize() with settings: ${settings}")
-  
-	subscribe(motions, "motion", modeHandler)
-    subscribe(contacts, "contact", modeHandler)
+ 
+ 
+// I could probably replace all of these with modeHandler 
     if(dimmers) { 
 		subscribe(dimmers, "switch.on", dimmerHandler)
 	}
@@ -105,16 +106,55 @@ private def initialize() {
     	subscribe(bulbs, "switch.on", bulbHandler)
     }
 	subscribe(location, "mode", modeHandler)
+    
+// revamped for sunset handling instead of motion events
+    subscribe(location, "sunset", modeHandler)
+    subscribe(location, "sunrise", modeHandler)
+    subscribe(location, "sunsetTime", scheduleTurnOn)
+    scheduleTurnOn()
+}
+
+def scheduleTurnOn() {
+
+log.debug "schedule ()  " 
+    //get the Date value for the string
+    def sunsetTime = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", location.currentValue("sunsetTime"))
+	def sunriseTime = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",location.currentValue("sunriseTime"))
+    if(sunriseTime.time > sunsetTime.time) { 
+    	sunriseTime = new Date(sunriseTime.time - (24 * 60 * 60 * 1000))
+    }
+    
+    log.debug "SUNSET: $sunsetTime : SUNRISE: $sunriseTime "
+
+    def runTime = new Date(now() + 60*15*1000)
+    // arbitrary 20 step dimming.  Let's see if it works
+    for (def i = 0; i <20; i++) {
+        def long uts = sunriseTime.time + (i * ((sunsetTime.time - sunriseTime.time) / 20))
+        def timeBeforeSunset = new Date(uts)
+   //             log.debug "STEP: $i : $timeBeforeSunset"
+        if(timeBeforeSunset.time > now()) {
+    		runTime = timeBeforeSunset
+  //          log.debug "DONE: $i : $timeBeforeSunset"
+            i = 21
+        }
+    }
+    
+    log.debug "checking... ${runTime.time} : $runTime"
+    if(state.nextTime != runTime.time) {
+    	state.nextTimer = runTime.time
+    	log.debug "Scheduling next step at: $runTime (sunset is $sunsetTime) :: ${state.nextTimer}"
+    	runOnce(runTime, modeHandler)
+   }
 }
 
 def dimmerHandler(evt) { 
 	def hsb = getHSB()
     for(dimmer in dimmers) { 
         if(dimmer.currentValue("switch") == "on" && dimmer.currentValue("level") != hsb.b) {     
-        	log.debug "DIMMER2: ${hsb.b} "
     		dimmer.setLevel(hsb.b)
 		}
 	}
+    scheduleTurnOn()
 }
 
 def ctbulbHandler(evt) {
@@ -128,24 +168,26 @@ def ctbulbHandler(evt) {
             ctbulb.setColorTemperature(colorTemp)
 		}
 	}
-    
+    scheduleTurnOn()
 }
 
 def bulbHandler(evt) { 
 	def hsb = getHSB()
 	def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
-    log.debug "updating ${evt.deviceId} with ${hsb}"
     for(bulb in bulbs) {
     	if(bulb.currentValue("switch") == "on") {
 			bulb.setColor(newValue)
         }
      }
+     scheduleTurnOn()
 }
 
 
 
 // wait for bulbs to turn on
 def modeHandler(evt) {
+
+	log.debug "called modeHandler()"
 
 	def hsb = getHSB()
     def colorTemp = getCT() 
@@ -168,6 +210,7 @@ def modeHandler(evt) {
             ctbulb.setColorTemperature(colorTemp)
 		}
 	}
+    scheduleTurnOn()
 }
 
 def getCT() { 
