@@ -58,10 +58,7 @@ definition(
 )
 
 preferences {
-//	section("If these motion sensors are activated...") {
-//		input "motions", "capability.motionSensor", title: "Which motion sensors?", multiple:true, required: false
-//		input "contacts", "capability.contactSensor", title: "And/or which contact sensors?", multiple:true, required: false
-//	}
+
 	section("Control these bulbs...") {
 		input "bulbs", "capability.colorControl", title: "Which Color Changing Bulbs?", multiple:true, required: false
 		input "ctbulbs", "capability.colorTemperature", title: "Which Temperature Changing Bulbs?", multiple:true, required: false
@@ -97,13 +94,16 @@ private def initialize() {
  
 // I could probably replace all of these with modeHandler 
     if(dimmers) { 
-		subscribe(dimmers, "switch.on", dimmerHandler)
+	//	subscribe(dimmers, "switch.on", dimmerHandler)
+        subscribe(dimmers, "switch.on", modeHandler)
 	}
     if(ctbulbs) { 
-    	subscribe(ctbulbs, "switch.on", ctbulbHandler)
+    //	subscribe(ctbulbs, "switch.on", ctbulbHandler)
+        subscribe(ctbulbs, "switch.on", modeHandler)
     }
     if(bulbs) { 
-    	subscribe(bulbs, "switch.on", bulbHandler)
+    	//subscribe(bulbs, "switch.on", bulbHandler)
+        subscribe(bulbs, "switch.on", modeHandler)
     }
 	subscribe(location, "mode", modeHandler)
     
@@ -160,7 +160,8 @@ def dimmerHandler(evt) {
 def ctbulbHandler(evt) {
 	def hsb = getHSB()
     def colorTemp = getCT()
-    for(ctbulb in ctbulb) { 
+    for(ctbulb in ctbulbs) { 
+    		log.debug "CT: $ctbulb"
         if(ctbulb.currentValue("switch") == "on") {
         	if(ctbulb.currentValue("level") != hsb.b) { 
     			ctbulb.setLevel(hsb.b)
