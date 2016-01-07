@@ -1,5 +1,5 @@
 /**
- *  Circadian Daylight 2.1
+ *  Circadian Daylight 2.2
  *
  *  This SmartApp synchronizes your color changing lights with local perceived color  
  *     temperature of the sky throughout the day.  This gives your environment a more 
@@ -33,6 +33,7 @@
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
  *		2700K (warm white) until your hub goes into Night mode
  *
+ *  Version 2.2: January 2, 2016 - Add better handling for off() schedules
  *  Version 2.1: October 27, 2015 - Replace motion sensors with time
  *  Version 2.0: September 19, 2015 - Update for Hub 2.0
  *  Version 1.5: June 26, 2015 - Merged with SANdood's optimizations, breaks unofficial LIGHTIFY support
@@ -51,7 +52,7 @@ definition(
 	name: "Circadian Daylight",
 	namespace: "KristopherKubicki",
 	author: "kristopher@acm.org",
-	description: "Sync your color changing lights with natural daylight hues",
+	description: "Sync your color changing lights with natural daylight hues.  Dims your lights at night or during nap time as well!",
 	category: "Green Living",
 	iconUrl: "https://s3.amazonaws.com/smartapp-icons/MiscHacking/mindcontrol.png",
 	iconX2Url: "https://s3.amazonaws.com/smartapp-icons/MiscHacking/mindcontrol@2x.png"
@@ -67,7 +68,7 @@ preferences {
     section("What are your 'Sleep' modes?") {
 		input "smodes", "mode", title: "What are your Sleep modes?", multiple:true, required: false
 	}
-    section("Enabled Dynamic Brightness?") { 
+    section("Enabled Dynamic Brightness instead of Constant Brightness?") { 
     	input "dbright","bool", title: "Yes or no?", required: false
     }
     section("Enabled Campfire instead of Moonlight?") { 
@@ -94,15 +95,12 @@ private def initialize() {
  
 // I could probably replace all of these with modeHandler 
     if(dimmers) { 
-	//	subscribe(dimmers, "switch.on", dimmerHandler)
         subscribe(dimmers, "switch.on", modeHandler)
 	}
     if(ctbulbs) { 
-    //	subscribe(ctbulbs, "switch.on", ctbulbHandler)
         subscribe(ctbulbs, "switch.on", modeHandler)
     }
     if(bulbs) { 
-    	//subscribe(bulbs, "switch.on", bulbHandler)
         subscribe(bulbs, "switch.on", modeHandler)
     }
 	subscribe(location, "mode", modeHandler)
@@ -110,6 +108,7 @@ private def initialize() {
 // revamped for sunset handling instead of motion events
     subscribe(location, "sunset", modeHandler)
     subscribe(location, "sunrise", modeHandler)
+    subscribe(app,modeHandler)
     subscribe(location, "sunsetTime", scheduleTurnOn)
     scheduleTurnOn()
 }
@@ -131,10 +130,8 @@ log.debug "schedule ()  "
     for (def i = 0; i <20; i++) {
         def long uts = sunriseTime.time + (i * ((sunsetTime.time - sunriseTime.time) / 20))
         def timeBeforeSunset = new Date(uts)
-   //             log.debug "STEP: $i : $timeBeforeSunset"
         if(timeBeforeSunset.time > now()) {
     		runTime = timeBeforeSunset
-  //          log.debug "DONE: $i : $timeBeforeSunset"
             i = 21
         }
     }
@@ -187,8 +184,6 @@ def bulbHandler(evt) {
 
 // wait for bulbs to turn on
 def modeHandler(evt) {
-
-	log.debug "called modeHandler()"
 
 	def hsb = getHSB()
     def colorTemp = getCT() 
@@ -288,7 +283,6 @@ def getHSB() {
             last
        	}
 	}
-
     
     def hsb = rgbToHSB(ctToRGB(colorTemp),brightness)
     return hsb
