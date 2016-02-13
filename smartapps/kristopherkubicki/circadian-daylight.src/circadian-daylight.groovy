@@ -1,7 +1,7 @@
 /**
  *  Circadian Daylight 2.2
  *
- *  This SmartApp synchronizes your color changing lights with local perceived color  
+ *  This SmartApp  your color changing lights with local perceived color  
  *     temperature of the sky throughout the day.  This gives your environment a more 
  *     natural feel, with cooler whites during the midday and warmer tints near twilight 
  *     and dawn.  
