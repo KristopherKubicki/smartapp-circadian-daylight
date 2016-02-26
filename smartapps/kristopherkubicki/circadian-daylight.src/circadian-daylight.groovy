@@ -74,7 +74,7 @@ preferences {
     section("Override Constant Brightness (default) with Dynamic Brightness?  If you'd like your lights to dim as the sun goes down, override this option.  Most people don't like it, but it can look good in some settings.") { 
     	input "dbright","bool", title: "On or off?", required: false
     }
-    section("Override night time Campfire (default) with Moonlight?  Circadian Daylight by default is easier on your eyes with a yellower hue at night.  However if you'd like a whiter light instead, override this option.  Note: this will likely disrupt your circadian rythm.") { 
+    section("Override night time Campfire (default) with Moonlight?  Circadian Daylight by default is easier on your eyes with a yellower hue at night.  However if you'd like a whiter light instead, override this option.  Note: this will likely disrupt your circadian rhythm.") { 
     	input "dcamp","bool", title: "On or off?", required: false
     }
 	section("Override night time Dimming (default) with Rhodopsin Bleaching?  Override this option if you would not like Circadian Daylight to dim your lights during your Sleep modes.  This is definitely not recommended!") { 
