@@ -1,5 +1,5 @@
 /**
- *  Circadian Daylight 2.2
+ *  Circadian Daylight 2.4
  *
  *  This SmartApp synchronizes your color changing lights with local perceived color  
  *     temperature of the sky throughout the day.  This gives your environment a more 
@@ -33,6 +33,8 @@
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
  *		2700K (warm white) until your hub goes into Night mode
  *
+ *  Version 2.4: February 18, 2016 - Mode changes
+ *  Version 2.3: January 23, 2016 - UX Improvements for publication, makes Campfire default instead of Moonlight
  *  Version 2.2: January 2, 2016 - Add better handling for off() schedules
  *  Version 2.1: October 27, 2015 - Replace motion sensors with time
  *  Version 2.0: September 19, 2015 - Update for Hub 2.0
@@ -52,30 +54,33 @@ definition(
 	name: "Circadian Daylight",
 	namespace: "KristopherKubicki",
 	author: "kristopher@acm.org",
-	description: "Sync your color changing lights with natural daylight hues.  Dims your lights at night or during nap time as well!",
+	description: "Sync your color changing lights and dimmers with natural daylight hues to improve your cognitive functions and restfulness.",
 	category: "Green Living",
 	iconUrl: "https://s3.amazonaws.com/smartapp-icons/MiscHacking/mindcontrol.png",
 	iconX2Url: "https://s3.amazonaws.com/smartapp-icons/MiscHacking/mindcontrol@2x.png"
 )
 
 preferences {
-
-	section("Control these bulbs...") {
+	section("Thank you for installing Circadian Daylight!  This application dims and adjusts the color temperature of your lights to match the state of the sun, which has been proven to aid in cognitive functions and restfulness.  The default options are well suited for most users, but feel free to tweak accordingly!") {
+    }
+	section("Control these bulbs; Select each bulb only once") {
+    	input "ctbulbs", "capability.colorTemperature", title: "Which Temperature Changing Bulbs?", multiple:true, required: false   
 		input "bulbs", "capability.colorControl", title: "Which Color Changing Bulbs?", multiple:true, required: false
-		input "ctbulbs", "capability.colorTemperature", title: "Which Temperature Changing Bulbs?", multiple:true, required: false
-		input "dimmers", "capability.switchLevel", title: "Which Dimmers?", multiple:true, required: false
+        input "dimmers", "capability.switchLevel", title: "Which Dimmers?", multiple:true, required: false
 	}
-    section("What are your 'Sleep' modes?") {
+    section("What are your 'Sleep' modes?  The modes you pick here will dim your lights and filter light to a softer, yellower hue to help you fall asleep easier.  Protip: You can pick 'Nap' modes as well!") {
 		input "smodes", "mode", title: "What are your Sleep modes?", multiple:true, required: false
 	}
-    section("Enabled Dynamic Brightness instead of Constant Brightness?") { 
-    	input "dbright","bool", title: "Yes or no?", required: false
+    section("Override Constant Brightness (default) with Dynamic Brightness?  If you'd like your lights to dim as the sun goes down, override this option.  Most people don't like it, but it can look good in some settings.") { 
+    	input "dbright","bool", title: "On or off?", required: false
     }
-    section("Enabled Campfire instead of Moonlight?") { 
-    	input "dcamp","bool", title: "Yes or no?", required: false
+    section("Override night time Campfire (default) with Moonlight?  Circadian Daylight by default is easier on your eyes with a yellower hue at night.  However if you'd like a whiter light instead, override this option.  Note: this will likely disrupt your circadian rythm.") { 
+    	input "dcamp","bool", title: "On or off?", required: false
+    }
+	section("Override night time Dimming (default) with Rhodopsin Bleaching?  Override this option if you would not like Circadian Daylight to dim your lights during your Sleep modes.  This is definitely not recommended!") { 
+		input "ddim","bool", title: "On or off?", required: false
     }
 }
-
 
 def installed() {
 	unsubscribe()
@@ -91,9 +96,6 @@ def updated() {
 
 private def initialize() {
 	log.debug("initialize() with settings: ${settings}")
- 
- 
-// I could probably replace all of these with modeHandler 
     if(dimmers) { 
         subscribe(dimmers, "switch.on", modeHandler)
 	}
@@ -108,14 +110,16 @@ private def initialize() {
 // revamped for sunset handling instead of motion events
     subscribe(location, "sunset", modeHandler)
     subscribe(location, "sunrise", modeHandler)
+    schedule("0 */15 * * * ?", modeHandler)
     subscribe(app,modeHandler)
     subscribe(location, "sunsetTime", scheduleTurnOn)
+// rather than schedule a cron entry, fire a status update a little bit in the future recursively
     scheduleTurnOn()
 }
 
 def scheduleTurnOn() {
-
-log.debug "schedule ()  " 
+ 	def int iterRate = 20
+ 
     //get the Date value for the string
     def sunsetTime = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", location.currentValue("sunsetTime"))
 	def sunriseTime = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",location.currentValue("sunriseTime"))
@@ -123,16 +127,13 @@ log.debug "schedule ()  "
     	sunriseTime = new Date(sunriseTime.time - (24 * 60 * 60 * 1000))
     }
     
-    log.debug "SUNSET: $sunsetTime : SUNRISE: $sunriseTime "
-
     def runTime = new Date(now() + 60*15*1000)
-    // arbitrary 20 step dimming.  Let's see if it works
-    for (def i = 0; i <20; i++) {
-        def long uts = sunriseTime.time + (i * ((sunsetTime.time - sunriseTime.time) / 20))
+    for (def i = 0; i < iterRate; i++) {
+        def long uts = sunriseTime.time + (i * ((sunsetTime.time - sunriseTime.time) / iterRate))
         def timeBeforeSunset = new Date(uts)
         if(timeBeforeSunset.time > now()) {
     		runTime = timeBeforeSunset
-            i = 21
+           	last
         }
     }
     
@@ -144,49 +145,11 @@ log.debug "schedule ()  "
    }
 }
 
-def dimmerHandler(evt) { 
-	def hsb = getHSB()
-    for(dimmer in dimmers) { 
-        if(dimmer.currentValue("switch") == "on" && dimmer.currentValue("level") != hsb.b) {     
-    		dimmer.setLevel(hsb.b)
-		}
-	}
-    scheduleTurnOn()
-}
 
-def ctbulbHandler(evt) {
-	def hsb = getHSB()
-    def colorTemp = getCT()
-    for(ctbulb in ctbulbs) { 
-    		log.debug "CT: $ctbulb"
-        if(ctbulb.currentValue("switch") == "on") {
-        	if(ctbulb.currentValue("level") != hsb.b) { 
-    			ctbulb.setLevel(hsb.b)
-            }
-            ctbulb.setColorTemperature(colorTemp)
-		}
-	}
-    scheduleTurnOn()
-}
-
-def bulbHandler(evt) { 
-	def hsb = getHSB()
-	def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
-    for(bulb in bulbs) {
-    	if(bulb.currentValue("switch") == "on") {
-			bulb.setColor(newValue)
-        }
-     }
-     scheduleTurnOn()
-}
-
-
-
-// wait for bulbs to turn on
+// Poll all bulbs, and modify the ones that differ from the expected state
 def modeHandler(evt) {
-
 	def hsb = getHSB()
-    def colorTemp = getCT() 
+    def ct = getCT() 
     for(dimmer in dimmers) {
         if(dimmer.currentValue("switch") == "on" && dimmer.currentValue("level") != hsb.b) {     
     		dimmer.setLevel(hsb.b)
@@ -194,7 +157,7 @@ def modeHandler(evt) {
 	}
 	def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
     for(bulb in bulbs) { 
-		if(bulb.currentValue("switch") == "on") { 
+        if(bulb.currentValue("switch") == "on" && (bulb.currentValue("hue") != hsb.h || bulb.currentValue("saturation") != hsb.s || bulb.currentValue("level") != hsb.b)) {
 			bulb.setColor(newValue) 
 		}
 	}
@@ -203,7 +166,9 @@ def modeHandler(evt) {
         	if(ctbulb.currentValue("level") != hsb.b) { 
         		ctbulb.setLevel(hsb.b)
             }
-            ctbulb.setColorTemperature(colorTemp)
+            if(ctbulb.currentValue("colorTemperature") != ct.colorTemp) { 
+            	ctbulb.setColorTemperature(ct.colorTemp)
+            }
 		}
 	}
     scheduleTurnOn()
@@ -212,51 +177,11 @@ def modeHandler(evt) {
 def getCT() { 
 	def after = getSunriseAndSunset()
 	def midDay = after.sunrise.time + ((after.sunset.time - after.sunrise.time) / 2)
-
+    
 	def currentTime = now()
-    
+    def float brightness = 1
 	def int colorTemp = 2700    
-	if(currentTime < after.sunrise.time) {
-		colorTemp = 2700
-	}
-	else if(currentTime > after.sunset.time) { 
-		colorTemp = 2700
-	}
-	else {
-		if(currentTime < midDay) { 
-			colorTemp = 2700 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 3300)
-		}
-		else { 
-			colorTemp = 6000 - ((currentTime - midDay) / (after.sunset.time - midDay) * 3300)
-		}
-	}
-    
-    for (smode in smodes) {
-		if(location.mode == smode) { 	
-			colorTemp = 6000
-            if(dcamp == true) {
-            	colorTemp = 2700
-            }
-       	}
-	}
-    return colorTemp
-}
-
-def getHSB() {
-	def after = getSunriseAndSunset()
-	def midDay = after.sunrise.time + ((after.sunset.time - after.sunrise.time) / 2)
-
-	def currentTime = now()
-    
-    def brightness = 1
-	def int colorTemp = 2700    
-	if(currentTime < after.sunrise.time) {
-		colorTemp = 2700
-	}
-	else if(currentTime > after.sunset.time) { 
-		colorTemp = 2700
-	}
-	else {
+	if(currentTime > after.sunrise.time && currentTime < after.sunset.time) { 
 		if(currentTime < midDay) { 
 			colorTemp = 2700 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 3300)
             brightness = ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time))
@@ -264,28 +189,39 @@ def getHSB() {
 		else { 
 			colorTemp = 6000 - ((currentTime - midDay) / (after.sunset.time - midDay) * 3300)
             brightness = 1 - ((currentTime - midDay) / (after.sunset.time - midDay))
+
 		}
 	}
-
+    
     if(dbright == false) { 
     	brightness = 1
     }
     for (smode in smodes) {
-		if(location.mode == smode) { 	
-			log.debug("this is moonlight")
-            if(dcamp == true) { 
-            	colorTemp = 2700
+		if(location.mode == smode) { 
+        	if(currentTime > after.sunset.time) {
+            	if(dcamp == true) { 
+            		colorTemp = 6000
+            	}
+            	else {
+					colorTemp = 3000
+            	}
             }
-            else {
-				colorTemp = 6000
-            }
-			brightness = 0.01
+			if(ddim == false) { 
+				brightness = 0.01
+			}
             last
        	}
 	}
     
-    def hsb = rgbToHSB(ctToRGB(colorTemp),brightness)
-    return hsb
+    def ct = [:]
+   	ct = [colorTemp: colorTemp, brightness: brightness]
+    ct
+}
+
+def getHSB() {
+    def ct = getCT()
+    def hsb = rgbToHSB(ctToRGB(ct.colorTemp),ct.brightness)
+    hsb
 }
     
 
@@ -301,11 +237,9 @@ def ctToRGB(ct) {
 	def r = 255
 	def g = 99.4708025861 * Math.log(ct) - 161.1195681661
 	def b = 138.5177312231 * Math.log(ct - 10) - 305.0447927307
-
-//	log.debug("r: $r g: $g b: $b")
-
-	def rgb = [:]
-	rgb = [r: r, g: g, b: b] 
+ 		  
+  	def rgb = [:] 
+ 	rgb = [r: r, g: g, b: b]
 	rgb
 }
 
