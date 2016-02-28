@@ -120,9 +120,13 @@ private def initialize() {
 def scheduleTurnOn() {
  	def int iterRate = 20
  
-    //get the Date value for the string
-    def sunsetTime = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", location.currentValue("sunsetTime"))
-	def sunriseTime = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",location.currentValue("sunriseTime"))
+    // get sunrise and sunset times
+    def sunRiseSet = getSunriseAndSunset()
+    def sunriseTime = sunRiseSet.sunrise
+    log.debug("sunrise time ${sunriseTime}")
+    def sunsetTime = sunRiseSet.sunset
+    log.debug("sunset time ${sunsetTime}")
+    
     if(sunriseTime.time > sunsetTime.time) { 
     	sunriseTime = new Date(sunriseTime.time - (24 * 60 * 60 * 1000))
     }
