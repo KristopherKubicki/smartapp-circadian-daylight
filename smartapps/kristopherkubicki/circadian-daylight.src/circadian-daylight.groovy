@@ -160,14 +160,17 @@ def modeHandler(evt) {
 		}
 	}
 	def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
-    for(bulb in bulbs) { 
+    for(bulb in bulbs) {
+    	if (settings.dbright == false) {
+        	newValue.level = bulb.currentValue("level")
+        }
         if(bulb.currentValue("switch") == "on" && (bulb.currentValue("hue") != hsb.h || bulb.currentValue("saturation") != hsb.s || bulb.currentValue("level") != hsb.b)) {
 			bulb.setColor(newValue) 
 		}
 	}
 	for(ctbulb in ctbulbs) {
 		if(ctbulb.currentValue("switch") == "on") { 
-        	if(ctbulb.currentValue("level") != hsb.b) { 
+        	if(settings.dbright == true && ctbulb.currentValue("level") != hsb.b) { 
         		ctbulb.setLevel(hsb.b)
             }
             if(ctbulb.currentValue("colorTemperature") != ct.colorTemp) { 
