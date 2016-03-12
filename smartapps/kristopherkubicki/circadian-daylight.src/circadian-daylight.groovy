@@ -80,6 +80,9 @@ preferences {
 	section("Override night time Dimming (default) with Rhodopsin Bleaching?  Override this option if you would not like Circadian Daylight to dim your lights during your Sleep modes.  This is definitely not recommended!") { 
 		input "ddim","bool", title: "On or off?", required: false
     }
+    section("Disable Circadian Daylight when the following switches are on:") { 
+		input "dswitches","capability.switch", title: "Switches", multiple:true, required: false
+    }
 }
 
 def installed() {
@@ -152,29 +155,37 @@ def scheduleTurnOn() {
 
 // Poll all bulbs, and modify the ones that differ from the expected state
 def modeHandler(evt) {
-	def hsb = getHSB()
-    def ct = getCT() 
-    for(dimmer in dimmers) {
-        if(dimmer.currentValue("switch") == "on" && dimmer.currentValue("level") != hsb.b) {     
-    		dimmer.setLevel(hsb.b)
-		}
-	}
-	def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
-    for(bulb in bulbs) { 
-        if(bulb.currentValue("switch") == "on" && (bulb.currentValue("hue") != hsb.h || bulb.currentValue("saturation") != hsb.s || bulb.currentValue("level") != hsb.b)) {
-			bulb.setColor(newValue) 
-		}
-	}
-	for(ctbulb in ctbulbs) {
-		if(ctbulb.currentValue("switch") == "on") { 
-        	if(ctbulb.currentValue("level") != hsb.b) { 
-        		ctbulb.setLevel(hsb.b)
+	def dswitchesOn = false
+    for (dswitch in dswitches) {
+    	if(dswitch.currentSwitch == "on") {
+        	dswitchesOn = true
+        }
+    }
+    if (dswitchesOn == false) {
+        def hsb = getHSB()
+        def ct = getCT() 
+        for(dimmer in dimmers) {
+            if(dimmer.currentValue("switch") == "on" && dimmer.currentValue("level") != hsb.b) {     
+                dimmer.setLevel(hsb.b)
             }
-            if(ctbulb.currentValue("colorTemperature") != ct.colorTemp) { 
-            	ctbulb.setColorTemperature(ct.colorTemp)
+        }
+        def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
+        for(bulb in bulbs) {
+            if(bulb.currentValue("switch") == "on" && (bulb.currentValue("hue") != hsb.h || bulb.currentValue("saturation") != hsb.s || bulb.currentValue("level") != hsb.b)) {
+                bulb.setColor(newValue) 
             }
-		}
-	}
+        }
+        for(ctbulb in ctbulbs) {
+            if(ctbulb.currentValue("switch") == "on") { 
+                if(ctbulb.currentValue("level") != hsb.b) { 
+                    ctbulb.setLevel(hsb.b)
+                }
+                if(ctbulb.currentValue("colorTemperature") != ct.colorTemp) { 
+                    ctbulb.setColorTemperature(ct.colorTemp)
+                }
+            }
+        }
+    }
     scheduleTurnOn()
 }
 
