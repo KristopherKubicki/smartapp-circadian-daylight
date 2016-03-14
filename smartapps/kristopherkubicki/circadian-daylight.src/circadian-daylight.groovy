@@ -1,5 +1,5 @@
 /**
- *  Circadian Daylight 2.4
+ *  Circadian Daylight 2.5
  *
  *  This SmartApp synchronizes your color changing lights with local perceived color  
  *     temperature of the sky throughout the day.  This gives your environment a more 
@@ -33,6 +33,7 @@
  *     *  The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
  *		2700K (warm white) until your hub goes into Night mode
  *
+ *  Version 2.5: March 14, 2016 - Add "disabled" switch
  *  Version 2.4: February 18, 2016 - Mode changes
  *  Version 2.3: January 23, 2016 - UX Improvements for publication, makes Campfire default instead of Moonlight
  *  Version 2.2: January 2, 2016 - Add better handling for off() schedules
@@ -155,6 +156,12 @@ def scheduleTurnOn() {
 
 // Poll all bulbs, and modify the ones that differ from the expected state
 def modeHandler(evt) {
+	for (dswitch in dswitches) {
+    		if(dswitch.currentSwitch == "on") {
+        		return
+		}
+	}
+    
 	def hsb = getHSB()
     def ct = getCT() 
     for(dimmer in dimmers) {
@@ -163,37 +170,21 @@ def modeHandler(evt) {
 		}
 	}
 	def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
-    for(bulb in bulbs) {
-    	if (settings.dbright == false) {
-        	newValue.level = bulb.currentValue("level")
-        }
+    for(bulb in bulbs) { 
         if(bulb.currentValue("switch") == "on" && (bulb.currentValue("hue") != hsb.h || bulb.currentValue("saturation") != hsb.s || bulb.currentValue("level") != hsb.b)) {
 			bulb.setColor(newValue) 
 		}
 	}
 	for(ctbulb in ctbulbs) {
 		if(ctbulb.currentValue("switch") == "on") { 
-        	if(settings.dbright == true && ctbulb.currentValue("level") != hsb.b) { 
+        	if(ctbulb.currentValue("level") != hsb.b) { 
         		ctbulb.setLevel(hsb.b)
             }
-        }
-        def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
-        for(bulb in bulbs) {
-            if(bulb.currentValue("switch") == "on" && (bulb.currentValue("hue") != hsb.h || bulb.currentValue("saturation") != hsb.s || bulb.currentValue("level") != hsb.b)) {
-                bulb.setColor(newValue) 
+            if(ctbulb.currentValue("colorTemperature") != ct.colorTemp) { 
+            	ctbulb.setColorTemperature(ct.colorTemp)
             }
-        }
-        for(ctbulb in ctbulbs) {
-            if(ctbulb.currentValue("switch") == "on") { 
-                if(ctbulb.currentValue("level") != hsb.b) { 
-                    ctbulb.setLevel(hsb.b)
-                }
-                if(ctbulb.currentValue("colorTemperature") != ct.colorTemp) { 
-                    ctbulb.setColorTemperature(ct.colorTemp)
-                }
-            }
-        }
-    }
+		}
+	}
     scheduleTurnOn()
 }
 
