@@ -155,18 +155,26 @@ def scheduleTurnOn() {
 
 // Poll all bulbs, and modify the ones that differ from the expected state
 def modeHandler(evt) {
-	def dswitchesOn = false
-    for (dswitch in dswitches) {
-    	if(dswitch.currentSwitch == "on") {
-        	dswitchesOn = true
+	def hsb = getHSB()
+    def ct = getCT() 
+    for(dimmer in dimmers) {
+        if(dimmer.currentValue("switch") == "on" && dimmer.currentValue("level") != hsb.b) {     
+    		dimmer.setLevel(hsb.b)
+		}
+	}
+	def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
+    for(bulb in bulbs) {
+    	if (settings.dbright == false) {
+        	newValue.level = bulb.currentValue("level")
         }
-    }
-    if (dswitchesOn == false) {
-        def hsb = getHSB()
-        def ct = getCT() 
-        for(dimmer in dimmers) {
-            if(dimmer.currentValue("switch") == "on" && dimmer.currentValue("level") != hsb.b) {     
-                dimmer.setLevel(hsb.b)
+        if(bulb.currentValue("switch") == "on" && (bulb.currentValue("hue") != hsb.h || bulb.currentValue("saturation") != hsb.s || bulb.currentValue("level") != hsb.b)) {
+			bulb.setColor(newValue) 
+		}
+	}
+	for(ctbulb in ctbulbs) {
+		if(ctbulb.currentValue("switch") == "on") { 
+        	if(settings.dbright == true && ctbulb.currentValue("level") != hsb.b) { 
+        		ctbulb.setLevel(hsb.b)
             }
         }
         def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
