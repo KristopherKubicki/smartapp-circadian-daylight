@@ -172,7 +172,7 @@ def modeHandler(evt) {
             if(settings.dbright == true && ctbulb.currentValue("level") != bright) {
                 ctbulb.setLevel(bright)
             }
-            if(ctbulb.currentValue("ColorTemperature") != ct) {
+            if(ctbulb.currentValue("colorTemperature") != ct) {
                 ctbulb.setColorTemperature(ct)
             }
         }
