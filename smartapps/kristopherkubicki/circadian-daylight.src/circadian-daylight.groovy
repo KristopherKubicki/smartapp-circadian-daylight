@@ -100,15 +100,10 @@ def updated() {
 
 private def initialize() {
     log.debug("initialize() with settings: ${settings}")
-    if(dimmers) {
-        subscribe(dimmers, "switch.on", modeHandler)
-    }
-    if(ctbulbs) {
-        subscribe(ctbulbs, "switch.on", modeHandler)
-    }
-    if(bulbs) {
-        subscribe(bulbs, "switch.on", modeHandler)
-    }
+    if(ctbulbs) { subscribe(ctbulbs, "switch.on", modeHandler) }
+    if(bulbs) { subscribe(bulbs, "switch.on", modeHandler) }
+    if(dimmers) { subscribe(dimmers, "switch.on", modeHandler) }
+    if(dswitches) { subscribe(dswitches, "switch.off", modeHandler) }
     subscribe(location, "mode", modeHandler)
     
     // revamped for sunset handling instead of motion events
@@ -158,7 +153,6 @@ def scheduleTurnOn() {
 def modeHandler(evt) {
     for (dswitch in dswitches) {
         if(dswitch.currentSwitch == "on") {
-        	scheduleTurnOn()
             return
         }
     }
