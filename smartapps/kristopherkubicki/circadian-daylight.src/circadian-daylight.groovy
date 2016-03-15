@@ -158,37 +158,49 @@ def scheduleTurnOn() {
 def modeHandler(evt) {
     for (dswitch in dswitches) {
         if(dswitch.currentSwitch == "on") {
+        	scheduleTurnOn()
             return
         }
     }
     
-    def hsb = getHSB()
     def ct = getCT()
-    for(dimmer in dimmers) {
-        if(dimmer.currentValue("switch") == "on" && dimmer.currentValue("level") != hsb.b) {
-            dimmer.setLevel(hsb.b)
-        }
-    }
-    def newValue = [hue: hsb.h, saturation: hsb.s, level: hsb.b]
-    for(bulb in bulbs) {
-        if(bulb.currentValue("switch") == "on" && (bulb.currentValue("hue") != hsb.h || bulb.currentValue("saturation") != hsb.s || bulb.currentValue("level") != hsb.b)) {
-            bulb.setColor(newValue)
-        }
-    }
+    def hex = getHex()
+    def hsv = getHSV()
+    def bright = getBright()
     for(ctbulb in ctbulbs) {
         if(ctbulb.currentValue("switch") == "on") {
-            if(ctbulb.currentValue("level") != hsb.b) {
-                ctbulb.setLevel(hsb.b)
+            if(settings.dbright == true && ctbulb.currentValue("level") != bright) {
+                ctbulb.setLevel(bright)
             }
-            if(ctbulb.currentValue("colorTemperature") != ct.colorTemp) {
-                ctbulb.setColorTemperature(ct.colorTemp)
+            if(ctbulb.currentValue("colorTemp") != ct) {
+                ctbulb.setColorTemperature(ct)
             }
         }
     }
+    def color = [hex: hex, hue: hsv.h, saturation: hsv.s, level: bright]
+    for(bulb in bulbs) {
+        if(bulb.currentValue("switch") == "on") {
+        	if(settings.dbright == true && bulb.currentValue("level") != bright) {
+                bulb.setLevel(bright)
+            }
+            if(bulb.currentValue("color") != hex) {
+            	color.value = bulb.currentValue("level")
+            	bulb.setColor(color)
+			}
+        }
+    }
+    for(dimmer in dimmers) {
+        if(dimmer.currentValue("switch") == "on") {
+        	if(dimmer.currentValue("level") != bright) {
+            	dimmer.setLevel(bright)
+            }
+        }
+    }
+    
     scheduleTurnOn()
 }
 
-def getCT() {
+def getCTBright() {
     def after = getSunriseAndSunset()
     def midDay = after.sunrise.time + ((after.sunset.time - after.sunrise.time) / 2)
     
@@ -197,11 +209,11 @@ def getCT() {
     def int colorTemp = 2700
     if(currentTime > after.sunrise.time && currentTime < after.sunset.time) {
         if(currentTime < midDay) {
-            colorTemp = 2700 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 3300)
+            colorTemp = 2700 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 3800)
             brightness = ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time))
         }
         else {
-            colorTemp = 6000 - ((currentTime - midDay) / (after.sunset.time - midDay) * 3300)
+            colorTemp = 6500 - ((currentTime - midDay) / (after.sunset.time - midDay) * 3800)
             brightness = 1 - ((currentTime - midDay) / (after.sunset.time - midDay))
             
         }
@@ -214,7 +226,7 @@ def getCT() {
         if(location.mode == smode) {
             if(currentTime > after.sunset.time) {
                 if(dcamp == true) {
-                    colorTemp = 6000
+                    colorTemp = 6500
                 }
                 else {
                     colorTemp = 3000
@@ -228,60 +240,107 @@ def getCT() {
     }
     
     def ct = [:]
-    ct = [colorTemp: colorTemp, brightness: brightness]
+    ct = [colorTemp: colorTemp, brightness: (brightness * 100)]
     ct
 }
 
-def getHSB() {
-    def ct = getCT()
-    def hsb = rgbToHSB(ctToRGB(ct.colorTemp),ct.brightness)
-    hsb
+def getCT() {
+	def ctb = getCTBright()
+    //log.debug "Color Temperature: " + ctb.colorTemp
+    return ctb.colorTemp
+}
+
+def getHex() {
+	def ct = getCT()
+    //log.debug "Hex: " + rgbToHex(ctToRGB(ct)).toUpperCase()
+    return rgbToHex(ctToRGB(ct)).toUpperCase()
+}
+
+def getHSV() {
+	def ct = getCT()
+    //log.debug "HSV: " + rgbToHSV(ctToRGB(ct))
+    return rgbToHSV(ctToRGB(ct))
+}
+
+def getBright() {
+	def ctb = getCTBright()
+    //log.debug "Brightness: " + ctb.brightness
+    return ctb.brightness
 }
 
 
 // Based on color temperature converter from
 // http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/
-// As commented, this will not work for color temperatures below 2700 or above 6000
+// This will not work for color temperatures below 1000 or above 40000
 def ctToRGB(ct) {
     
-    if(ct < 2700) { ct = 2700 }
-    if(ct > 6000) { ct = 6000 }
+    if(ct < 1000) { ct = 1000 }
+    if(ct > 40000) { ct = 40000 }
     
     ct = ct / 100
-    def r = 255
-    def g = 99.4708025861 * Math.log(ct) - 161.1195681661
-    def b = 138.5177312231 * Math.log(ct - 10) - 305.0447927307
+    
+    //red
+    def r
+    if(ct <= 66) { r = 255 }
+    else { r = 329.698727446 * ((ct - 60) ** -0.1332047592) }
+    if(r < 0) { r = 0 }
+    if(r > 255) { r = 255 }
+    
+    //green
+    def g
+    if (ct <= 66) { g = 99.4708025861 * Math.log(ct) - 161.1195681661 }
+    else { g = 288.1221695283 * ((ct - 60) ** -0.0755148492) }
+    if(g < 0) { g = 0 }
+    if(g > 255) { g = 255 }
+    
+    //blue
+    def b
+    if(ct >= 66) { b = 255 }
+    else if(ct <= 19) { b = 0 }
+    else { b = 138.5177312231 * Math.log(ct - 10) - 305.0447927307 }
+    if(b < 0) { b = 0 }
+    if(b > 255) { b = 255 }
     
     def rgb = [:]
-    rgb = [r: r, g: g, b: b]
+    rgb = [r: r as Integer, g: g as Integer, b: b as Integer]
     rgb
 }
 
-// Based on color calculator from
-// http://codeitdown.com/hsl-hsb-hsv-color/
-// Corrected brightness and saturation using calculator from
-// http://www.rapidtables.com/convert/color/rgb-to-hsl.htm
-def rgbToHSB(rgb,brightness) {
-    def r = rgb.r
-    def g = rgb.g
-    def b = rgb.b
-    float hue, saturation;
+def rgbToHex(rgb) {
+	return "#" + Integer.toHexString(rgb.r) + Integer.toHexString(rgb.g) + Integer.toHexString(rgb.b)
+}
+
+//http://www.rapidtables.com/convert/color/rgb-to-hsv.htm
+def rgbToHSV(rgb) {
+	def h, s, v
     
-    float cmax = (r > g) ? r : g;
-    if (b > cmax) cmax = b;
-    float cmin = (r < g) ? r : g;
-    if (b < cmin) cmin = b;
+    def r = rgb.r / 255
+    def g = rgb.g / 255
+    def b = rgb.b / 255
     
-    float delta = (cmax - cmin)
-    saturation = 0
-    if(delta != 0) saturation = delta / cmax
+    def max = [r, g, b].max()
+    def min = [r, g, b].min()
     
-    if (saturation == 0) hue = 0;
-    else hue = 0.60 * ((g - b) / (255 - cmin)) % 360
+    def delta = max - min
+       
+    //hue
+    if(delta == 0) { h = 0}
+    else if(max == r) { 
+    	double dub = (g - b) / delta
+        h = 60 * (dub % 6)
+	}
+    else if(max == g) { h = 60 * (((b - r) / delta) + 2) }
+    else if(max == b) { h = 60 * (((r - g) / delta) + 4) }
     
-    log.debug("h: $hue s: $saturation b: $brightness")
+    //saturation
+    if(max == 0) { s = 0 }
+    else { s = (delta / max) * 100 }
     
-    def hsb = [:]
-    hsb = [h: Math.round(hue * 100) as Integer, s: Math.round(saturation * 100) as Integer, b: Math.round(brightness * 100) as Integer ?: 100]
-    hsb
+    //value
+    v = max * 100
+    
+    def degreesRange = (360 - 0)
+    def percentRange = (100 - 0)
+    
+    return [h: ((h * percentRange) / degreesRange) as Integer, s: ((s * percentRange) / degreesRange) as Integer, v: v as Integer]
 }
