@@ -166,7 +166,7 @@ def modeHandler(evt) {
             if(settings.dbright == true && ctbulb.currentValue("level") != bright) {
                 ctbulb.setLevel(bright)
             }
-            if(ctbulb.currentValue("colorTemperature") != ct) {
+            if(ctbulb.currentValue("colormode") != "ct" || ctbulb.currentValue("colorTemperature") != ct) {
                 ctbulb.setColorTemperature(ct)
             }
         }
@@ -177,7 +177,7 @@ def modeHandler(evt) {
         	if(settings.dbright == true && bulb.currentValue("level") != bright) {
                 bulb.setLevel(bright)
             }
-            if(bulb.currentValue("color") != hex) {
+            if((bulb.currentValue("colormode") != "xy" && bulb.currentValue("colormode") != "hs") || bulb.currentValue("color") != hex) {
             	color.value = bulb.currentValue("level")
             	bulb.setColor(color)
 			}
