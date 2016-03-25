@@ -163,31 +163,41 @@ def modeHandler(evt) {
     def bright = getBright()
     for(ctbulb in ctbulbs) {
         if(ctbulb.currentValue("switch") == "on") {
-            if(settings.dbright == true && ctbulb.currentValue("level") != bright) {
-                ctbulb.setLevel(bright)
-            }
-            if(ctbulb.currentValue("colormode") != "ct" || ctbulb.currentValue("colorTemperature") != ct) {
-                ctbulb.setColorTemperature(ct)
-            }
+            if(settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") {
+				if(ctbulb.currentValue("level") != bright) {
+					ctbulb.setLevel(bright)
+				}
+			}
+			if(ctbulb.currentValue("cdColor") != "false") {
+				if(ctbulb.currentValue("colormode") != "ct" || ctbulb.currentValue("colorTemperature") != ct) {
+					ctbulb.setColorTemperature(ct)
+				}
+			}
         }
     }
     def color = [hex: hex, hue: hsv.h, saturation: hsv.s, level: bright]
     for(bulb in bulbs) {
         if(bulb.currentValue("switch") == "on") {
-        	if(settings.dbright == true && bulb.currentValue("level") != bright) {
-                bulb.setLevel(bright)
-            }
-            if((bulb.currentValue("colormode") != "xy" && bulb.currentValue("colormode") != "hs") || bulb.currentValue("color") != hex) {
-            	color.value = bulb.currentValue("level")
-            	bulb.setColor(color)
+        	if(settings.dbright == true && bulb.currentValue("cdBrightness") != "false") {
+				if(bulb.currentValue("level") != bright) {
+					bulb.setLevel(bright)
+				}
+			}
+			if(bulb.currentValue("cdColor") != "false") {
+				if((bulb.currentValue("colormode") != "xy" && bulb.currentValue("colormode") != "hs") || bulb.currentValue("color") != hex) {
+					color.value = bulb.currentValue("level")
+					bulb.setColor(color)
+				}
 			}
         }
     }
     for(dimmer in dimmers) {
         if(dimmer.currentValue("switch") == "on") {
-        	if(dimmer.currentValue("level") != bright) {
-            	dimmer.setLevel(bright)
-            }
+        	if(ctbulb.currentValue("cdBrightness") != "false") {
+				if(dimmer.currentValue("level") != bright) {
+					dimmer.setLevel(bright)
+				}
+			}
         }
     }
     
