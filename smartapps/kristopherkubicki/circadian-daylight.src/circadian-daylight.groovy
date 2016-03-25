@@ -100,9 +100,20 @@ def updated() {
 
 private def initialize() {
     log.debug("initialize() with settings: ${settings}")
-    if(ctbulbs) { subscribe(ctbulbs, "switch.on", modeHandler) }
-    if(bulbs) { subscribe(bulbs, "switch.on", modeHandler) }
-    if(dimmers) { subscribe(dimmers, "switch.on", modeHandler) }
+    if(ctbulbs) {
+		subscribe(ctbulbs, "switch.on", modeHandler)
+		subscribe(ctbulbs, "cdBrightness.true", modeHandler)
+		subscribe(ctbulbs, "cdColor.true", modeHandler)
+	}
+    if(bulbs) {
+		subscribe(bulbs, "switch.on", modeHandler)
+		subscribe(ctbulbs, "cdBrightness.true", modeHandler)
+		subscribe(ctbulbs, "cdColor.true", modeHandler)
+	}
+    if(dimmers) {
+		subscribe(dimmers, "switch.on", modeHandler)
+		subscribe(ctbulbs, "cdBrightness.true", modeHandler)
+	}
     if(dswitches) { subscribe(dswitches, "switch.off", modeHandler) }
     subscribe(location, "mode", modeHandler)
     
