@@ -176,12 +176,14 @@ def modeHandler(evt) {
         if(ctbulb.currentValue("switch") == "on") {
             if(settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") {
 				if(ctbulb.currentValue("level") != bright) {
-					ctbulb.setLevel(bright)
+					if(ctbulb.currentValue("cdBrightness") == "true") { ctbulb.setLevel(bright, false) } //Prevent CD from getting disabled, if compatible
+					else { ctbulb.setLevel(bright) }
 				}
 			}
 			if(ctbulb.currentValue("cdColor") != "false") {
 				if(ctbulb.currentValue("colormode") != "ct" || ctbulb.currentValue("colorTemperature") != ct) {
-					ctbulb.setColorTemperature(ct)
+					if(ctbulb.currentValue("cdColor") == "true") { ctbulb.setColorTemperature(ct, false) } //Prevent CD from getting disabled, if compatible
+					else { ctbulb.setColorTemperature(ct) }
 				}
 			}
         }
@@ -191,12 +193,14 @@ def modeHandler(evt) {
         if(bulb.currentValue("switch") == "on") {
         	if(settings.dbright == true && bulb.currentValue("cdBrightness") != "false") {
 				if(bulb.currentValue("level") != bright) {
-					bulb.setLevel(bright)
+					if(bulb.currentValue("cdBrightness") == "true") { bulb.setLevel(bright, false) } //Prevent CD from getting disabled, if compatible
+					else { bulb.setLevel(bright) }
 				}
 			}
 			if(bulb.currentValue("cdColor") != "false") {
 				if((bulb.currentValue("colormode") != "xy" && bulb.currentValue("colormode") != "hs") || bulb.currentValue("color") != hex) {
 					color.value = bulb.currentValue("level")
+					if(bulb.currentValue("cdColor") == "true") { color.disableCDColor = false } //Prevent CD from getting disabled, if compatible
 					bulb.setColor(color)
 				}
 			}
@@ -204,9 +208,10 @@ def modeHandler(evt) {
     }
     for(dimmer in dimmers) {
         if(dimmer.currentValue("switch") == "on") {
-        	if(ctbulb.currentValue("cdBrightness") != "false") {
+        	if(dimmer.currentValue("cdBrightness") != "false") {
 				if(dimmer.currentValue("level") != bright) {
-					dimmer.setLevel(bright)
+					if(dimmer.currentValue("cdBrightness") == "true") { dimmer.setLevel(bright, false) } //Prevent CD from getting disabled, if compatible
+					else { dimmer.setLevel(bright) }
 				}
 			}
         }
