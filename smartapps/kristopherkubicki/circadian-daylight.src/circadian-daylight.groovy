@@ -1,5 +1,5 @@
 /**
-* Circadian Daylight 2.5
+* Circadian Daylight 2.6
 *
 * This SmartApp synchronizes your color changing lights with local perceived color
 * temperature of the sky throughout the day. This gives your environment a more
@@ -33,6 +33,7 @@
 * * The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
 * 2700K (warm white) until your hub goes into Night mode
 *
+* Version 2.6: March 26, 2016 - Fixes issue with hex colors.  Move your color changing bulbs to Color Temperature instead
 * Version 2.5: March 14, 2016 - Add "disabled" switch
 * Version 2.4: February 18, 2016 - Mode changes
 * Version 2.3: January 23, 2016 - UX Improvements for publication, makes Campfire default instead of Moonlight
@@ -167,9 +168,10 @@ def modeHandler(evt) {
     def hex = getHex()
     def hsv = getHSV()
     def bright = getBright()
+    
     for(ctbulb in ctbulbs) {
         if(ctbulb.currentValue("switch") == "on") {
-            if(settings.dbright == true && ctbulb.currentValue("level") != bright) {
+            if(ctbulb.currentValue("level") != bright) {
                 ctbulb.setLevel(bright)
             }
             if(ctbulb.currentValue("colorTemperature") != ct) {
@@ -180,12 +182,12 @@ def modeHandler(evt) {
     def color = [hex: hex, hue: hsv.h, saturation: hsv.s, level: bright]
     for(bulb in bulbs) {
         if(bulb.currentValue("switch") == "on") {
-        	if(settings.dbright == true && bulb.currentValue("level") != bright) {
-                bulb.setLevel(bright)
-            }
+        def tmp = bulb.currentValue("color")
             if(bulb.currentValue("color") != hex) {
-            	color.value = bulb.currentValue("level")
-            	bulb.setColor(color)
+            	if(settings.dbright == false) { 
+	            	color.value = bulb.currentValue("level")
+                }
+            	def ret = bulb.setColor(color)
 			}
         }
     }
@@ -206,14 +208,14 @@ def getCTBright() {
     
     def currentTime = now()
     def float brightness = 1
-    def int colorTemp = 2700
+    def int colorTemp = 2000
     if(currentTime > after.sunrise.time && currentTime < after.sunset.time) {
         if(currentTime < midDay) {
-            colorTemp = 2700 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 3800)
+            colorTemp = 2000 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 4500)
             brightness = ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time))
         }
         else {
-            colorTemp = 6500 - ((currentTime - midDay) / (after.sunset.time - midDay) * 3800)
+            colorTemp = 6500 - ((currentTime - midDay) / (after.sunset.time - midDay) * 4500)
             brightness = 1 - ((currentTime - midDay) / (after.sunset.time - midDay))
             
         }
@@ -225,14 +227,14 @@ def getCTBright() {
     for (smode in smodes) {
         if(location.mode == smode) {
             if(currentTime > after.sunset.time) {
-                if(dcamp == true) {
+                if(settings.dcamp == true) {
                     colorTemp = 6500
                 }
                 else {
-                    colorTemp = 3000
+                    colorTemp = 2000
                 }
             }
-            if(ddim == false) {
+            if(settings.ddim == false) {
                 brightness = 0.01
             }
             last
@@ -240,7 +242,7 @@ def getCTBright() {
     }
     
     def ct = [:]
-    ct = [colorTemp: colorTemp, brightness: (brightness * 100)]
+    ct = [colorTemp: colorTemp, brightness: (brightness * 100) as Integer]
     ct
 }
 
@@ -307,7 +309,7 @@ def ctToRGB(ct) {
 }
 
 def rgbToHex(rgb) {
-	return "#" + Integer.toHexString(rgb.r) + Integer.toHexString(rgb.g) + Integer.toHexString(rgb.b)
+	return "#" + Integer.toHexString(rgb.r).padLeft(2,'0') + Integer.toHexString(rgb.g).padLeft(2,'0') + Integer.toHexString(rgb.b).padLeft(2,'0')
 }
 
 //http://www.rapidtables.com/convert/color/rgb-to-hsv.htm
