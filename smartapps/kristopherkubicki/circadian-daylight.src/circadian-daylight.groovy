@@ -176,7 +176,7 @@ def modeHandler(evt) {
     
     for(ctbulb in ctbulbs) {
         if(ctbulb.currentValue("switch") == "on") {
-            if((settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") || smodes.contains(location.mode)) {
+            if((settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") || location.mode in settings.smodes) {
 				if(ctbulb.currentValue("level") != bright) {
 					if(ctbulb.currentValue("cdBrightness") == "true") { ctbulb.setLevel(bright, false) } //Prevent CD from getting disabled, if compatible
 					else { ctbulb.setLevel(bright) }
@@ -196,7 +196,7 @@ def modeHandler(evt) {
 			def tmp = bulb.currentValue("color")
 			if(bulb.currentValue("cdColor") != "false") {
 				if((bulb.currentValue("colormode") != "xy" && bulb.currentValue("colormode") != "hs") || bulb.currentValue("color") != hex) {
-					if((settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") || smodes.contains(location.mode)) {
+					if((settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") || location.mode in settings.smodes) {
 						color.value = bright
 					} else {
 						color.value = bulb.currentValue("level")
@@ -244,7 +244,7 @@ def getCTBright() {
         brightness = 1
     }
     
-	if(smodes.contains(location.mode)) {
+	if(location.mode in settings.smodes) {
 		if(currentTime > after.sunset.time) {
 			if(settings.dcamp == true) {
 				colorTemp = 6500
