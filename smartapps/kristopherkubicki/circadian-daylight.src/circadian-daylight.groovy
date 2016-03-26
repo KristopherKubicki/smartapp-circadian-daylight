@@ -259,7 +259,7 @@ def getCTBright() {
 	}
     
     def ct = [:]
-    ct = [colorTemp: colorTemp, brightness: (brightness * 100) as Integer]
+    ct = [colorTemp: colorTemp, brightness: Math.round(brightness * 100)]
     ct
 }
 
