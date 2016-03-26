@@ -165,7 +165,7 @@ def modeHandler(evt) {
     
     for(ctbulb in ctbulbs) {
         if(ctbulb.currentValue("switch") == "on") {
-            if(ctbulb.currentValue("level") != bright) {
+            if((settings.dbright == true || smodes.contains(location.mode)) && ctbulb.currentValue("level") != bright) {
                 ctbulb.setLevel(bright)
             }
             if(ctbulb.currentValue("colorTemperature") != ct) {
@@ -176,11 +176,13 @@ def modeHandler(evt) {
     def color = [hex: hex, hue: hsv.h, saturation: hsv.s, level: bright]
     for(bulb in bulbs) {
         if(bulb.currentValue("switch") == "on") {
-        def tmp = bulb.currentValue("color")
+			def tmp = bulb.currentValue("color")
             if(bulb.currentValue("color") != hex) {
-            	if(settings.dbright == false) { 
-	            	color.value = bulb.currentValue("level")
-                }
+            	if(settings.dbright == true || smodes.contains(location.mode)) { 
+	            	color.value = bright
+                } else {
+					color.value = bulb.currentValue("level")
+				}
             	def ret = bulb.setColor(color)
 			}
         }
@@ -202,38 +204,36 @@ def getCTBright() {
     
     def currentTime = now()
     def float brightness = 1
-    def int colorTemp = 2000
+    def int colorTemp = 2700
     if(currentTime > after.sunrise.time && currentTime < after.sunset.time) {
         if(currentTime < midDay) {
-            colorTemp = 2000 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 4500)
+            colorTemp = 2700 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 3800)
             brightness = ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time))
         }
         else {
-            colorTemp = 6500 - ((currentTime - midDay) / (after.sunset.time - midDay) * 4500)
+            colorTemp = 6500 - ((currentTime - midDay) / (after.sunset.time - midDay) * 3800)
             brightness = 1 - ((currentTime - midDay) / (after.sunset.time - midDay))
             
         }
     }
     
-    if(dbright == false) {
+    if(settings.dbright == false) {
         brightness = 1
     }
-    for (smode in smodes) {
-        if(location.mode == smode) {
-            if(currentTime > after.sunset.time) {
-                if(settings.dcamp == true) {
-                    colorTemp = 6500
-                }
-                else {
-                    colorTemp = 2000
-                }
-            }
-            if(settings.ddim == false) {
-                brightness = 0.01
-            }
-            last
-        }
-    }
+    
+	if(smodes.contains(location.mode)) {
+		if(currentTime > after.sunset.time) {
+			if(settings.dcamp == true) {
+				colorTemp = 6500
+			}
+			else {
+				colorTemp = 2000
+			}
+		}
+		if(settings.ddim == false) {
+			brightness = 0.01
+		}
+	}
     
     def ct = [:]
     ct = [colorTemp: colorTemp, brightness: (brightness * 100) as Integer]
