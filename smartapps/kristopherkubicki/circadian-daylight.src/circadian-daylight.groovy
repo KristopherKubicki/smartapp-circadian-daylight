@@ -165,7 +165,7 @@ def modeHandler(evt) {
     
     for(ctbulb in ctbulbs) {
         if(ctbulb.currentValue("switch") == "on") {
-            if((settings.dbright == true || smodes.contains(location.mode)) && ctbulb.currentValue("level") != bright) {
+            if((settings.dbright == true || location.mode in settings.smodes) && ctbulb.currentValue("level") != bright) {
                 ctbulb.setLevel(bright)
             }
             if(ctbulb.currentValue("colorTemperature") != ct) {
@@ -178,7 +178,7 @@ def modeHandler(evt) {
         if(bulb.currentValue("switch") == "on") {
 			def tmp = bulb.currentValue("color")
             if(bulb.currentValue("color") != hex) {
-            	if(settings.dbright == true || smodes.contains(location.mode)) { 
+            	if(settings.dbright == true || location.mode in settings.smodes) { 
 	            	color.value = bright
                 } else {
 					color.value = bulb.currentValue("level")
@@ -221,7 +221,7 @@ def getCTBright() {
         brightness = 1
     }
     
-	if(smodes.contains(location.mode)) {
+	if(location.mode in settings.smodes) {
 		if(currentTime > after.sunset.time) {
 			if(settings.dcamp == true) {
 				colorTemp = 6500
