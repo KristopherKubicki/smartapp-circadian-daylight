@@ -1,5 +1,5 @@
 /**
-* Circadian Daylight 2.5
+* Circadian Daylight 2.6
 *
 * This SmartApp synchronizes your color changing lights with local perceived color
 * temperature of the sky throughout the day. This gives your environment a more
@@ -33,6 +33,7 @@
 * * The app doesn't calculate a true "Blue Hour" -- it just sets the lights to
 * 2700K (warm white) until your hub goes into Night mode
 *
+* Version 2.6: March 26, 2016 - Fixes issue with hex colors.  Move your color changing bulbs to Color Temperature instead
 * Version 2.5: March 14, 2016 - Add "disabled" switch
 * Version 2.4: February 18, 2016 - Mode changes
 * Version 2.3: January 23, 2016 - UX Improvements for publication, makes Campfire default instead of Moonlight
@@ -172,9 +173,10 @@ def modeHandler(evt) {
     def hex = getHex()
     def hsv = getHSV()
     def bright = getBright()
+    
     for(ctbulb in ctbulbs) {
         if(ctbulb.currentValue("switch") == "on") {
-            if(settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") {
+            if((settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") || smodes.contains(location.mode)) {
 				if(ctbulb.currentValue("level") != bright) {
 					if(ctbulb.currentValue("cdBrightness") == "true") { ctbulb.setLevel(bright, false) } //Prevent CD from getting disabled, if compatible
 					else { ctbulb.setLevel(bright) }
@@ -191,24 +193,23 @@ def modeHandler(evt) {
     def color = [hex: hex, hue: hsv.h, saturation: hsv.s, level: bright]
     for(bulb in bulbs) {
         if(bulb.currentValue("switch") == "on") {
-        	if(settings.dbright == true && bulb.currentValue("cdBrightness") != "false") {
-				if(bulb.currentValue("level") != bright) {
-					if(bulb.currentValue("cdBrightness") == "true") { bulb.setLevel(bright, false) } //Prevent CD from getting disabled, if compatible
-					else { bulb.setLevel(bright) }
-				}
-			}
+			def tmp = bulb.currentValue("color")
 			if(bulb.currentValue("cdColor") != "false") {
 				if((bulb.currentValue("colormode") != "xy" && bulb.currentValue("colormode") != "hs") || bulb.currentValue("color") != hex) {
-					color.value = bulb.currentValue("level")
+					if((settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") || smodes.contains(location.mode)) {
+						color.value = bright
+					} else {
+						color.value = bulb.currentValue("level")
+					}
 					if(bulb.currentValue("cdColor") == "true") { color.disableCDColor = false } //Prevent CD from getting disabled, if compatible
-					bulb.setColor(color)
+					def ret = bulb.setColor(color)
 				}
 			}
         }
     }
     for(dimmer in dimmers) {
         if(dimmer.currentValue("switch") == "on") {
-        	if(dimmer.currentValue("cdBrightness") != "false") {
+        	if(dimmer.currentValue("cdBrightness") != "false" || smodes.contains(location.mode)) {
 				if(dimmer.currentValue("level") != bright) {
 					if(dimmer.currentValue("cdBrightness") == "true") { dimmer.setLevel(bright, false) } //Prevent CD from getting disabled, if compatible
 					else { dimmer.setLevel(bright) }
@@ -239,28 +240,26 @@ def getCTBright() {
         }
     }
     
-    if(dbright == false) {
+    if(settings.dbright == false) {
         brightness = 1
     }
-    for (smode in smodes) {
-        if(location.mode == smode) {
-            if(currentTime > after.sunset.time) {
-                if(dcamp == true) {
-                    colorTemp = 6500
-                }
-                else {
-                    colorTemp = 3000
-                }
-            }
-            if(ddim == false) {
-                brightness = 0.01
-            }
-            last
-        }
-    }
+    
+	if(smodes.contains(location.mode)) {
+		if(currentTime > after.sunset.time) {
+			if(settings.dcamp == true) {
+				colorTemp = 6500
+			}
+			else {
+				colorTemp = 2000
+			}
+		}
+		if(settings.ddim == false) {
+			brightness = 0.01
+		}
+	}
     
     def ct = [:]
-    ct = [colorTemp: colorTemp, brightness: (brightness * 100)]
+    ct = [colorTemp: colorTemp, brightness: (brightness * 100) as Integer]
     ct
 }
 
@@ -327,7 +326,7 @@ def ctToRGB(ct) {
 }
 
 def rgbToHex(rgb) {
-	return "#" + Integer.toHexString(rgb.r) + Integer.toHexString(rgb.g) + Integer.toHexString(rgb.b)
+	return "#" + Integer.toHexString(rgb.r).padLeft(2,'0') + Integer.toHexString(rgb.g).padLeft(2,'0') + Integer.toHexString(rgb.b).padLeft(2,'0')
 }
 
 //http://www.rapidtables.com/convert/color/rgb-to-hsv.htm
