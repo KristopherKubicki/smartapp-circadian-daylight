@@ -101,15 +101,10 @@ def updated() {
 
 private def initialize() {
     log.debug("initialize() with settings: ${settings}")
-    if(dimmers) {
-        subscribe(dimmers, "switch.on", modeHandler)
-    }
-    if(ctbulbs) {
-        subscribe(ctbulbs, "switch.on", modeHandler)
-    }
-    if(bulbs) {
-        subscribe(bulbs, "switch.on", modeHandler)
-    }
+    if(ctbulbs) { subscribe(ctbulbs, "switch.on", modeHandler) }
+    if(bulbs) { subscribe(bulbs, "switch.on", modeHandler) }
+    if(dimmers) { subscribe(dimmers, "switch.on", modeHandler) }
+    if(dswitches) { subscribe(dswitches, "switch.off", modeHandler) }
     subscribe(location, "mode", modeHandler)
     
     // revamped for sunset handling instead of motion events
@@ -159,7 +154,6 @@ def scheduleTurnOn() {
 def modeHandler(evt) {
     for (dswitch in dswitches) {
         if(dswitch.currentSwitch == "on") {
-        	scheduleTurnOn()
             return
         }
     }
@@ -171,7 +165,7 @@ def modeHandler(evt) {
     
     for(ctbulb in ctbulbs) {
         if(ctbulb.currentValue("switch") == "on") {
-            if(ctbulb.currentValue("level") != bright) {
+            if((settings.dbright == true || location.mode in settings.smodes) && ctbulb.currentValue("level") != bright) {
                 ctbulb.setLevel(bright)
             }
             if(ctbulb.currentValue("colorTemperature") != ct) {
@@ -182,11 +176,13 @@ def modeHandler(evt) {
     def color = [hex: hex, hue: hsv.h, saturation: hsv.s, level: bright]
     for(bulb in bulbs) {
         if(bulb.currentValue("switch") == "on") {
-        def tmp = bulb.currentValue("color")
+			def tmp = bulb.currentValue("color")
             if(bulb.currentValue("color") != hex) {
-            	if(settings.dbright == false) { 
-	            	color.value = bulb.currentValue("level")
-                }
+            	if(settings.dbright == true || location.mode in settings.smodes) { 
+	            	color.value = bright
+                } else {
+					color.value = bulb.currentValue("level")
+				}
             	def ret = bulb.setColor(color)
 			}
         }
@@ -221,28 +217,26 @@ def getCTBright() {
         }
     }
     
-    if(dbright == false) {
+    if(settings.dbright == false) {
         brightness = 1
     }
-    for (smode in smodes) {
-        if(location.mode == smode) {
-            if(currentTime > after.sunset.time) {
-                if(settings.dcamp == true) {
-                    colorTemp = 6500
-                }
-                else {
-                    colorTemp = 2700
-                }
-            }
-            if(settings.ddim == false) {
-                brightness = 0.01
-            }
-            last
-        }
-    }
+    
+	if(location.mode in settings.smodes) {
+		if(currentTime > after.sunset.time) {
+			if(settings.dcamp == true) {
+				colorTemp = 6500
+			}
+			else {
+				colorTemp = 2700
+			}
+		}
+		if(settings.ddim == false) {
+			brightness = 0.01
+		}
+	}
     
     def ct = [:]
-    ct = [colorTemp: colorTemp, brightness: (brightness * 100) as Integer]
+    ct = [colorTemp: colorTemp, brightness: Math.round(brightness * 100)]
     ct
 }
 
