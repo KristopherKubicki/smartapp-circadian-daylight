@@ -208,14 +208,14 @@ def getCTBright() {
     
     def currentTime = now()
     def float brightness = 1
-    def int colorTemp = 2000
+    def int colorTemp = 2700
     if(currentTime > after.sunrise.time && currentTime < after.sunset.time) {
         if(currentTime < midDay) {
-            colorTemp = 2000 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 4500)
+            colorTemp = 2700 + ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time) * 3800)
             brightness = ((currentTime - after.sunrise.time) / (midDay - after.sunrise.time))
         }
         else {
-            colorTemp = 6500 - ((currentTime - midDay) / (after.sunset.time - midDay) * 4500)
+            colorTemp = 6500 - ((currentTime - midDay) / (after.sunset.time - midDay) * 3800)
             brightness = 1 - ((currentTime - midDay) / (after.sunset.time - midDay))
             
         }
@@ -231,7 +231,7 @@ def getCTBright() {
                     colorTemp = 6500
                 }
                 else {
-                    colorTemp = 2000
+                    colorTemp = 2700
                 }
             }
             if(settings.ddim == false) {
