@@ -1,4 +1,7 @@
 # Circadian Daylight
+
+> **Legacy note:** This is an older SmartThings/Hubitat-era integration. It remains public for people maintaining classic Groovy SmartApps and device handlers, but it is not actively maintained for the current SmartThings platform.
+
 Use your SmartThings Hub to sync your color changing lights with natural daylight hues
 
 This SmartApp slowly synchronizes your color changing lights with local perceived color temperature of the sky throughout the day.  This gives your environment a more natural feel, with cooler whites during the midday and warmer tints near twilight and dawn.
