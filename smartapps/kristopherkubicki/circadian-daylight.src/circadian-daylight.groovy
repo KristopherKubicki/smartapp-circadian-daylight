@@ -101,9 +101,20 @@ def updated() {
 
 private def initialize() {
     log.debug("initialize() with settings: ${settings}")
-    if(ctbulbs) { subscribe(ctbulbs, "switch.on", modeHandler) }
-    if(bulbs) { subscribe(bulbs, "switch.on", modeHandler) }
-    if(dimmers) { subscribe(dimmers, "switch.on", modeHandler) }
+    if(ctbulbs) {
+		subscribe(ctbulbs, "switch.on", modeHandler)
+		subscribe(ctbulbs, "cdBrightness.true", modeHandler)
+		subscribe(ctbulbs, "cdColor.true", modeHandler)
+	}
+    if(bulbs) {
+		subscribe(bulbs, "switch.on", modeHandler)
+		subscribe(ctbulbs, "cdBrightness.true", modeHandler)
+		subscribe(ctbulbs, "cdColor.true", modeHandler)
+	}
+    if(dimmers) {
+		subscribe(dimmers, "switch.on", modeHandler)
+		subscribe(ctbulbs, "cdBrightness.true", modeHandler)
+	}
     if(dswitches) { subscribe(dswitches, "switch.off", modeHandler) }
     subscribe(location, "mode", modeHandler)
     
@@ -165,33 +176,45 @@ def modeHandler(evt) {
     
     for(ctbulb in ctbulbs) {
         if(ctbulb.currentValue("switch") == "on") {
-            if((settings.dbright == true || location.mode in settings.smodes) && ctbulb.currentValue("level") != bright) {
-                ctbulb.setLevel(bright)
-            }
-            if(ctbulb.currentValue("colorTemperature") != ct) {
-                ctbulb.setColorTemperature(ct)
-            }
+            if((settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") || location.mode in settings.smodes) {
+				if(ctbulb.currentValue("level") != bright) {
+					if(ctbulb.currentValue("cdBrightness") == "true") { ctbulb.setLevel(bright, false) } //Prevent CD from getting disabled, if compatible
+					else { ctbulb.setLevel(bright) }
+				}
+			}
+			if(ctbulb.currentValue("cdColor") != "false") {
+				if(ctbulb.currentValue("colormode") != "ct" || ctbulb.currentValue("colorTemperature") != ct) {
+					if(ctbulb.currentValue("cdColor") == "true") { ctbulb.setColorTemperature(ct, false) } //Prevent CD from getting disabled, if compatible
+					else { ctbulb.setColorTemperature(ct) }
+				}
+			}
         }
     }
     def color = [hex: hex, hue: hsv.h, saturation: hsv.s, level: bright]
     for(bulb in bulbs) {
         if(bulb.currentValue("switch") == "on") {
 			def tmp = bulb.currentValue("color")
-            if(bulb.currentValue("color") != hex) {
-            	if(settings.dbright == true || location.mode in settings.smodes) { 
-	            	color.value = bright
-                } else {
-					color.value = bulb.currentValue("level")
+			if(bulb.currentValue("cdColor") != "false") {
+				if((bulb.currentValue("colormode") != "xy" && bulb.currentValue("colormode") != "hs") || bulb.currentValue("color") != hex) {
+					if((settings.dbright == true && ctbulb.currentValue("cdBrightness") != "false") || location.mode in settings.smodes) {
+						color.value = bright
+					} else {
+						color.value = bulb.currentValue("level")
+					}
+					if(bulb.currentValue("cdColor") == "true") { color.disableCDColor = false } //Prevent CD from getting disabled, if compatible
+					def ret = bulb.setColor(color)
 				}
-            	def ret = bulb.setColor(color)
 			}
         }
     }
     for(dimmer in dimmers) {
         if(dimmer.currentValue("switch") == "on") {
-        	if(dimmer.currentValue("level") != bright) {
-            	dimmer.setLevel(bright)
-            }
+        	if(dimmer.currentValue("cdBrightness") != "false" || smodes.contains(location.mode)) {
+				if(dimmer.currentValue("level") != bright) {
+					if(dimmer.currentValue("cdBrightness") == "true") { dimmer.setLevel(bright, false) } //Prevent CD from getting disabled, if compatible
+					else { dimmer.setLevel(bright) }
+				}
+			}
         }
     }
     
